@@ -1,0 +1,27 @@
+# MNDO dynamics
+&cntrl
+ imin=0,
+
+ nstlim=5000000,
+ dt=0.0005,
+
+ ntpr=1000,
+ ntwx=1000,
+ ntwr=-1000,
+
+ ntb=0,
+ cut=50.0,
+
+ temp0=300.0,
+ ntt=3,
+ gamma_ln=5,
+
+ ifqnt=1,
+&end
+
+&qmmm
+  qmmask=":1",
+  qmcharge=0,
+  qm_theory="MNDO",
+  qmcut=9.0,
+&end
