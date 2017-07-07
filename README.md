@@ -32,3 +32,6 @@ Example output files of Amber (SANDER/PMEMD) can be found in the directory test/
 More details about the calculations and files will be explained in this README file.
 
 # Documentation
+
+## Installation of NOMAD Infrastructure
+More information on the installation of NOMAD infrastructure can be found [here](https://workflowy.com/s/DKhN.2pfL6VMJzn)
