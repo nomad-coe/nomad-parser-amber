@@ -29,7 +29,6 @@ Amber (SANDER/PMEMD) output files can be parsed with:
 
 ## Test Files
 Example output files of Amber (SANDER/PMEMD) can be found in the directory test/examples.
-More details about the calculations and files are explained in a README in this directory.
+More details about the calculations and files will be explained in this README file.
 
-# Documentation of Code
-The [google style guide](https://google.github.io/styleguide/pyguide.html?showone=Comments#Comments) provides a good template on how the code should be documented. This makes it easier to follow the logic of the parser.
+# Documentation
