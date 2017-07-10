@@ -174,13 +174,19 @@ class Container(object):
     def checkUpdateValue(self, item):
         updateValue = False
         if item.lookupdict:
-            for depdict in item["depends"]:
+            for tests in item["depends"]:
+                depdict = item["depends"][depdict]
                 depmeet = 0
                 for depk, depv in depdict:
-                    if depk in item.lookupdict:
-                        if item.lookupdict[depk].value==depv:
+                    lookupmap = item.lookupdict.values()
+                    if depk in lookupmap.metaName:
+                        if '!' in depv:
+                            if item.lookupdictmap.value!=depv:
+                                depmeet += 1
+                        if item.lookupdictmap.value==depv:
                             depmeet += 1
                 if depmeet == len(depdict.keys()):
+
                     updateValue = True
         else:
             for depdict in item["depends"]:
@@ -286,7 +292,7 @@ class Container(object):
                                     self.Storage.__dict__[key]["val"])
                     else:
                         if onlynames:
-                            string = string + '%s|    |__.%s : Active=%s Value=%s\n' % (decorate + 
+                            string = string + '%s|    |__.%s\n' % (decorate + 
                                     self.Indent, key)
                         else:
                             string = string + '%s|    |__.%s : Active=%s Value=%s\n' % (decorate + 
@@ -411,6 +417,7 @@ class JsonMetaInfo(object):
         siblings = []
         searchList = []
         nameList = []
+        containsList = []
         for item in self.jsonList:
             superlist = item['superNames']
             itemname = item['name']
@@ -425,8 +432,10 @@ class JsonMetaInfo(object):
                 if itemname not in nameList:
                     nameList.append(itemname)
         for name in searchList:
-            if (('section' in name or 'settings' in name ) and 
-                set([name]) not in set(nameList) and 
+            #if (('section' in name or 
+            #     'settings' in name or 
+            #     'configuration_core' in name) and 
+            if (set([name]) not in set(nameList) and 
                 self.isparent(name)):
                 siblings.append(name)
         return siblings
@@ -492,7 +501,7 @@ if __name__ == "__main__":
             }
     
     run.populate(jsonmetadata, 'section_run', exclude_dict, updateDict)
-    run.Color = 4
+    #run.Color = 4
     for container in run.Containers:
         if 'section_topology' in container.Name:
             select = container

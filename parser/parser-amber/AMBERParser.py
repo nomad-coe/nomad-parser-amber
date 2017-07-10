@@ -7,11 +7,10 @@ import nomadcore.ActivateLogging
 from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import AncillaryParser, mainFunction, ParsingContext
 from nomadcore.simple_parser import SimpleMatcher as SM
-from AMBERDictionary import get_nameList, set_excludeList, set_includeList
+from AMBERDictionary import set_excludeList, set_includeList
 from AMBERCommon import write_mdin
 import AMBERCommon as AmberC
-import AMBERmdinParser
-import trajectory_reader
+import trajectory_reader as TrajRead
 import logging
 import os
 import re
@@ -58,16 +57,21 @@ class AMBERParser(AmberC.AMBERParserBase):
             metaInfo = self.metaInfoEnv.infoKinds[name]
             if (name.startswith('x_amber_mdin_') and
                 metaInfo.kindStr == "type_document_content" and
-                ("x_amber_mdin_method" in metaInfo.superNames or "x_amber_mdin_run" in metaInfo.superNames) or
+                ("x_amber_mdin_method" in metaInfo.superNames or 
+                 "x_amber_mdin_run" in metaInfo.superNames or 
+                 "x_amber_mdin_system" in metaInfo.superNames) or
                 name.startswith('x_amber_parm_') and
                 metaInfo.kindStr == "type_document_content" and
-                ("x_amber_mdin_method" in metaInfo.superNames or "x_amber_mdin_run" in metaInfo.superNames) or
+                ("x_amber_mdin_method" in metaInfo.superNames or 
+                 "x_amber_mdin_run" in metaInfo.superNames or
+                 "x_amber_mdin_system" in metaInfo.superNames) or
                 name.startswith('x_amber_mdin_file_') and
                 metaInfo.kindStr == "type_document_content" and
                 ("x_amber_section_input_output_files" in metaInfo.superNames) or
                 name.startswith('x_amber_mdout_') and
                 metaInfo.kindStr == "type_document_content" and
                 ("x_amber_mdout_method" in metaInfo.superNames or 
+                 "x_amber_mdout_system" in metaInfo.superNames or
                  "x_amber_mdout_single_configuration_calculation" in metaInfo.superNames)
                 or name.startswith('section_single_configuration_calculation')
                ):
@@ -79,17 +83,26 @@ class AMBERParser(AmberC.AMBERParserBase):
         This allows a consistent setting and resetting of the variables,
         when the parsing starts and when a section_run closes.
         """
+        self.metaIntoStorage = None
         self.secMethodIndex = None
         self.secSystemDescriptionIndex = None
         self.inputMethodIndex = None
         self.mainMethodIndex = None
         self.mainCalcIndex = None
         self.MD = True
-        self.MDUnitCell = None
+        self.topology = None
+        self.topologyFormat = None
+        self.topologyFile = None
+        self.trajectory = None
+        self.trajectoryFormat = None
+        self.trajectoryFile = None
+        self.readChunk = 300
+        self.unitcell = None
+        self.atompositions = None
         # start with -1 since zeroth iteration is the initialization
         self.mdIterNr = -1
         self.singleConfCalcs = []
-        self.geoConvergence = None
+        self.minConvergence = None
         self.parsedLogFile = False
         self.LogSuperContext = None
         self.forces_raw = []
@@ -119,6 +132,66 @@ class AMBERParser(AmberC.AMBERParserBase):
         line = parser.fIn.fIn.readline()
         parser.fIn.fIn.seek(pos)
         return line
+
+    def topologyFileHandler(self, fileItem):
+        if 'topology' in self.fileDict[fileItem].infoPurpose:
+            topofile = self.fileDict[fileItem].fileName
+            self.topologyFile = topofile
+            self.trajectory = TrajRead.TrajectoryReader()
+            self.trajectory.topofile = topofile
+            self.topology = self.trajectory.load_topology()
+            if self.topology is None:
+                for fileFormat in self.fileDict[fileItem].fileFormat:
+                    self.trajectory = TrajRead.TrajectoryReader()
+                    self.trajectory.topofile = topofile
+                    self.trajectory.topoformat = fileFormat
+                    self.topology = self.trajectory.load_topology()
+                    if self.topology is not None:
+                        return fileFormat
+
+    def trajectoryFileHandler(self, fileItem, topoformat):
+        if 'trajectory' in self.fileDict[fileItem].infoPurpose:
+            trajfile = self.fileDict[fileItem].fileName
+            self.trajectoryFile = trajfile
+            self.trajectory = TrajRead.TrajectoryReader()
+            self.trajectory.trajfile = trajfile
+            self.trajectory.topofile = self.topologyFile
+            self.trajectory.topoformat = topoformat
+            traj_loaded = self.trajectory.load()
+            self.trajectory.trajchunk=self.readChunk
+            self.atompositions = self.trajectory.iread()
+            if self.atompositions is None:
+                for fileFormat in self.fileDict[fileItem].fileFormat:
+                    self.trajectory = TrajRead.TrajectoryReader()
+                    self.trajectory.trajfile = trajfile
+                    self.trajectory.topofile = self.topologyFile
+                    self.trajectory.topoformat = topoformat
+                    self.trajectory.trajformat = fileFormat
+                    self.trajectory.trajchunk=self.readChunk
+                    traj_loaded = self.trajectory.load()
+                    self.atompositions = self.trajectory.iread()
+                    if self.atompositions is not None:
+                        return fileFormat
+
+    def initializeFileHandlers(self):
+        # Files will be loaded using their extensions initially.
+        # If this fails, the fileFormat lists will be used in loading process.
+        topoformat = None
+        trajformat = None
+        for fileItem in self.fileDict:
+            if (self.fileDict[fileItem].fileSupplied and
+                self.fileDict[fileItem].activeInfo):
+                # First check topology file
+                topoformat = self.topologyFileHandler(fileItem)
+                # Second check trajectory file
+                trajformat = self.trajectoryFileHandler(fileItem, topoformat)
+        print(self.atompositions)
+        self.topologyFormat = topoformat
+        self.trajectoryFormat = trajformat
+        #if trajformat or topoformat:
+        #    return True
+        #else:
+        #    return False
 
     #def compile_traj_parser(self):
     #    """Instantiate superContext and construct parser for MD trajactory file.
@@ -206,7 +279,7 @@ class AMBERParser(AmberC.AMBERParserBase):
     def onClose_x_amber_section_input_output_files(self, backend, gIndex, section):
         """Trigger called when x_amber_section_input_output_files is closed.
 
-        Determine whether topology, trajectroy and input coordinate files are
+        Determine whether topology, trajectory and input coordinate files are
         supplied to the parser
         
         Initiates topology and trajectory file handles.
@@ -217,6 +290,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         """
         # Checking whether topology, input 
         # coordinates and trajectory files exist
+        atLeastOneFileExist = False
         working_dir_name = os.path.dirname(os.path.abspath(self.fName))
         for k,v in section.simpleValues.items():
             if k.startswith('x_amber_mdin_file'):
@@ -225,7 +299,11 @@ class AMBERParser(AmberC.AMBERParserBase):
                 if self.fileDict[k].fileSupplied:
                     self.fileDict[k].fileName = file_name
                     if self.fileDict[k].activeInfo:
-                        backend.superBackend.addValue(k, v[-1])
+                        self.fileDict[k].value = v[-1]
+                        atLeastOneFileExist = True
+                        #backend.superBackend.addValue(k, v[-1])
+        if atLeastOneFileExist:
+            self.initializeFileHandlers()
 
     def onOpen_section_method(self, backend, gIndex, section):
         # keep track of the latest method section
@@ -302,6 +380,36 @@ class AMBERParser(AmberC.AMBERParserBase):
 
         Writes atomic positions, atom labels and lattice vectors.
         """
+        # check if control keywords were found or verbatim_writeout is false
+        #verbatim_writeout = True
+        counter = 0
+        write_mdin(self, backend=backend,
+            metaInfoEnv=self.metaInfoEnv,
+            valuesDict=section.simpleValues,
+            metaNameStart='x_amber_mdin',
+            writeCheck=True,
+            location='verbatim writeout of mdin',
+            logger=LOGGER)
+        exclude_list = set_excludeList(self)
+        include_list = set_includeList()
+        #for name in self.metaInfoEnv.infoKinds:
+        #    if name.startswith('x_fhi_aims_mdin_'):
+        #        exclude_list.append(name)
+        # write settings of aims output from the parsed mdin
+        for k,v in section.simpleValues.items():
+            if (k.startswith('x_amber_mdin_') or 
+#                k.startswith('x_amber_mdout_') or
+                k.startswith('x_amber_parm_')):
+#                if k in exclude_list and k not in include_list:
+#                    continue
+#                # default writeout
+#                else:
+                backend.superBackend.addValue(k, v[-1])
+            if k.startswith('x_amber_mdin_imin'):
+#                print("-----IMIN----",k,v)
+                if int(v[-1]) == 1:
+                    self.MD = False
+
         # Write atomic geometry in the case of MD 
 #        if not self.MD:
 #            # write atomic positions
@@ -347,9 +455,9 @@ class AMBERParser(AmberC.AMBERParserBase):
 #                    backend.addArrayValues('configuration_periodic_dimensions', np.asarray([True, True, True]))
 #                self.periodicCalc = True
         # write stored unit cell in case of MD
-        if self.periodicCalc and self.MD and self.scfIterNr > -1:
-            backend.addArrayValues('simulation_cell', self.MDUnitCell)
-            backend.addArrayValues('configuration_periodic_dimensions', np.asarray([True, True, True]))
+#        if self.periodicCalc and self.MD and self.scfIterNr > -1:
+#            backend.addArrayValues('simulation_cell', self.MDUnitCell)
+#            backend.addArrayValues('configuration_periodic_dimensions', np.asarray([True, True, True]))
 
     def onOpen_section_single_configuration_calculation(self, backend, gIndex, section):
         # write the references to section_method and section_system
@@ -404,6 +512,9 @@ class AMBERParser(AmberC.AMBERParserBase):
                 # default writeout
                 else:
                     backend.superBackend.addValue(k, v[-1])
+        if self.atompositions is not None:
+            print(self.atompositions)
+            self.atompositions = self.trajectory.iread()
 
     def setStartingPointCalculation(self, parser):
         backend = parser.backend
@@ -414,102 +525,6 @@ class AMBERParser(AmberC.AMBERParserBase):
             backend.closeSection('section_calculation_to_calculation_refs')
         return None
     
-    def adHoc_store_stop_parsed_namelist(self, parser, 
-            stopOnMatch, metaNameStart, matchNameList):
-        print('ParserLines:' + parser.fIn.fInLine)
-        #lastline = parser.lastMatch['x_amber_mdin_finline']
-        lastline = parser.fIn.fInLine
-        currentContext = parser.context[len(parser.context) - 1]
-#        print("new context: %s\n" % parser.contextDesc())
-        compMatcher = currentContext.compiledMatcher
-        print(compMatcher.matcher.desc())
-#       self.findNextWithRe(self.possibleNextsRe, parser.possibleNexts, parser)
-#        for i in range(len(compMatcher.possibleNexts)):
-#            targetStartEnd, targetMatcher = compMatcher.possibleNexts[i]
-#            print("targetIndex %s StartEnd %s\n" % (targetMatcher.index, targetStartEnd))
-        if re.compile(stopOnMatch).findall(lastline):
-#            parser.startReStr = r"BLAH"
-            parser.endReStr = stopOnMatch
-            parser.repeats = False
-#            compMatcher.matcher.startReStr = r"BLAH"
-#            compMatcher.matcher.endReStr = stopOnMatch
-#            compMatcher.startRe = re.compile(r"BLAH")
-#            compMatcher.endRe = re.compile(stopOnMatch)
-#            compMatcher.matcher.adHoc = None
-#            print(compMatcher.matcher.desc())
-#            compMatcher.matcher.startEnd = ParsingContext.End
-            currentContext = parser.context[len(parser.context) - 1]
-            print("new context: %s\n" % parser.contextDesc())
-            compMatcher = currentContext.compiledMatcher
-#            self.findNextWithRe(self.possibleNextsRe, parser.possibleNexts, parser)
-#            nextI = compMatcher.findNextWithRe(compMatcher.possibleNextsEndRe, compMatcher.possibleNextsEnd, parser)
-            for i in range(len(compMatcher.possibleNexts)):
-                targetStartEnd, targetMatcher = compMatcher.possibleNexts[i]
-                print("targetIndex %s StartEnd %s\n" % (targetMatcher.index, targetStartEnd))
-                if ParsingContext.Start == targetStartEnd and \
-                targetMatcher.index > compMatcher.matcher.index:
-                    nextI = 2 * targetMatcher.index + targetStartEnd
-                    break
-#            nextI = compMatcher.findNextWithRe(compMatcher.possibleNextsEndRe, compMatcher.possibleNextsEnd, parser)
-            index = nextI // 2
-            startEnd = nextI % 2
-            print("next %s, index %s, startEnd %s\n" % (nextI, index, startEnd))
-            print(parser.parserBuilder.flatIndex[index])
-            matcherNew = parser.parserBuilder.flatIndex[index]
-#            parser.discard = True
-#            newContext = parser.context.pop()
-#            currentContext.startEnd = ParsingContext.End
-#            currentContext.compiledMatcher.matcher=parser.parserBuilder.flatIndex[index]
-#            newContext.startEnd = ParsingContext.End
-#            return parser.contextPop()
-#            return parser.contextClose(newContext)
-#            return parser.contextClose(currentContext)
-#            return parser.goToMatcher(matcherNew, startEnd)
-#            return nextI
-#                print("---------QUIT MATCHED---------")
-#                currentContext = parser.context[len(parser.context) - 1]
-#                compMatcher = currentContext.compiledMatcher
-#                nextI = 2 * (compMatcher.matcher.index + 1)
-#                if nextI:
-#                    return nextI
-        else:
-            for cName in matchNameList:
-                key = metaNameStart + cName
-                reDict={key:value for value in 
-                    re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?P<%s_%s>[\-+0-9.eEdD]+)\s*," 
-                    % (cName, cName, cName, metaNameStart, cName)).findall(lastline)}
-                if reDict:
-#                    print(reDict)
-                    for k,v in reDict.items():
-                        if k == '%s%s' % (metaNameStart, cName): 
-                            if k in list(parser.lastMatch.keys()):
-                                parser.lastMatch[k]=v
-#                                print("---------" + k + "=" + parser.lastMatch[k] + "---------")
-                            else:
-                                #parser.backend.superBackend.addValue(k, v)
-                                parser.backend.addValue(k, v)
-#                                print("+++++++++" + k + "=" + str(v) + "+++++++++")
-
-
-    def adHoc_store_parsed_namelist(self, parser, 
-            metaNameStart, matchNameList):
-        lastline = parser.lastMatch['x_amber_mdin_finline']
-        for cName in matchNameList:
-            key = metaNameStart + cName
-            reDict={key:value for value in 
-                re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?P<%s%s>[\-+0-9.eEdD]+)\s*," 
-                % (cName, cName, cName, metaNameStart, cName)).findall(lastline)}
-            if reDict:
-#               print(reDict)
-                for k,v in reDict.items():
-                    if k == '%s%s' % (metaNameStart, cName): 
-                        if k in list(parser.lastMatch.keys()):
-                            parser.lastMatch[k]=v[-1]
-#                           print("---------" + k + "=" + parser.lastMatch[k] + "---------")
-                        else:
-                            parser.backend.superBackend.addValue(k, v[-1])
-#                           print("+++++++++" + k + "=" + str(v[-1]) + "+++++++++")
-
     def check_namelist_store(self, parser, lastLine, stopOnMatchRe, quitOnMatchRe, 
             metaNameStart, matchNameList, onlyCaseSensitive, stopOnFirstLine):
         stopOnMatch = False
@@ -531,7 +546,6 @@ class AMBERParser(AmberC.AMBERParserBase):
             if self.MD is not True:
                 newLine = parser.fIn.readline()
                 lastLine = ' = '.join([ "%s" % str(line) for line in zip(lastLine, newLine)])
-                print("---------|" + lastLine + "|---------")
             for cName in matchNameList:
                 key = metaNameStart + cName.lower().replace(" ", "").replace("-", "")
                 reDict={key:value for value in 
@@ -546,11 +560,8 @@ class AMBERParser(AmberC.AMBERParserBase):
                         if k == key: 
                             if k in list(parser.lastMatch.keys()):
                                 parser.lastMatch[k]=v
-                                #print(">>>>>>>>>" + k + "=" + v + "<<<<<<<<<")
                             else:
                                 parser.backend.addValue(k, v)
-#                                parser.backend.superBackend.addValue(k, v)
-#                                print("+++++++++" + k + "=" + v + "+++++++++")
             return False
 
     def adHoc_read_namelist_stop_parsing(self, parser, stopOnMatchStr, quitOnMatchStr, 
@@ -591,78 +602,15 @@ class AMBERParser(AmberC.AMBERParserBase):
                     else:
                         lastLine = parser.fIn.readline()
 
-#    def adHoc_read_namelist_stop_parsing(self, parser, stopOnMatch, metaNameStart, matchNameList, onlyCaseSensitive):
-#        lastLine = parser.fIn.fInLine
-#        # Check the captured line has Fortran namelist variables and store them
-#        # Continue search and store until the line matches with stopOnMatch
-#        stopOnMatchRe = re.compile(stopOnMatch)
-#        if self.check_namelist_store(parser, lastLine, 
-#                stopOnMatchRe, metaNameStart, 
-#                matchNameList, onlyCaseSensitive) is not True:
-#            while True:
-#                lastLine = parser.fIn.readline()
-#                if not lastLine:
-#                    break
-#                else:
-#                    # Matched with stopOnMatch. Discarding the line and return SimpleMatcher context.
-#                    # Can this line be discarded since it is the end of line for input control
-#                    # variables or end of namelist ?
-#                    if self.check_namelist_store(parser, lastLine, 
-#                            stopOnMatchRe, metaNameStart, 
-#                            matchNameList, onlyCaseSensitive):
-#                        break
-
-    def adHoc_store_cntrl_stop_parsing(self, parser, stopOnMatch, metaNameStart):
-        matchNameList=get_nameList('cntrl')
-        lastline = parser.fIn.readline()
-#        print("!!!!!!!!!" + lastline + "!!!!!!!!!")
-        if re.compile(stopOnMatch).findall(lastline):
-            parser.endReStr = stopOnMatch
-#            parser.repeats = False
-            currentContext = parser.context[len(parser.context) - 1]
-            currentContext.startEnd = ParsingContext.End
-            return parser.contextClose(currentContext)
-        else:
-            for cName in matchNameList:
-                key = metaNameStart + '_' + cName
-                reDict={key:value for value in 
-                        re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?P<%s_%s>[\-+0-9.eEdD]+)\s*," 
-                        % (cName, cName, cName, metaNameStart, cName)).findall(lastline)}
-                if reDict:
-#                    print(reDict)
-                    for k,v in reDict.items():
-                        if k == '%s_%s' % (metaNameStart, cName): 
-                            if k in list(parser.lastMatch.keys()):
-                                parser.lastMatch[k]=v[-1]
-#                                print("---------" + k + "=" + parser.lastMatch[k] + "---------")
-                            else:
-                                parser.backend.superBackend.addValue(k, v[-1])
-#                                print("+++++++++" + k + "=" + str(v[-1]) + "+++++++++")
-
-#    def adHoc_stop_parsing(self, parser, onMatch):
-#        #lastline = list(parser.lastMatch.keys())
-#        lastline = parser.fIn.readline()
-##        lastline = parser.lastMatch
-#        print('--------------' + lastline)
-##        for lastMatchedValue in lastline:
-##            if re.compile(onMatch).findall(lastMatchedValue):
-#        if re.compile(onMatch).findall(lastline):
-#            parser.endReStr = onMatch
-##           parser.repeats = False
-#            currentContext = parser.context[len(parser.context) - 1]
-#            currentContext.startEnd = 1
-#            return parser.contextClose(currentContext)
-
-
     def build_mdinKeywordsSimpleMatchers(self):
         cntrlDefVals={ 'x_amber_settings_integrator_type':   'molecular_dynamics', 
                        'x_amber_settings_integrator_dt__ps': '0.001', 
                        'x_amber_ensemble_type':              'NVE'
                      },
-        cntrlNameList=get_nameList('cntrl')
-        ewaldNameList=get_nameList('ewald')
-        qmmmNameList=get_nameList('qmmm')
-        wtNameList=get_nameList('wt')
+        cntrlNameList=self.cntrlDict.keys()
+        ewaldNameList=self.ewaldDict.keys()
+        qmmmNameList=self.qmmmDict.keys()
+        wtNameList=self.wtDict.keys()
         return [
             SM(name="cntrl",
                startReStr=r"\s*&cntrl",
@@ -739,7 +687,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             ]
 
     def build_parmKeywordsSimpleMatchers(self):
-        parmNameList=get_nameList('parm')
+        parmNameList=self.parmDict.keys()
         return [
             SM(name="parm",
                startReStr=r"\|\s*Version\s*=\s*(?P<x_amber_parm_file_version>[0-9.eEdD]+)" + 
@@ -764,8 +712,9 @@ class AMBERParser(AmberC.AMBERParserBase):
             ]
 
     def build_mdoutKeywordsSimpleMatchers(self):
-        #mdoutNameList = get_nameList('cntrl') + get_nameList('ewald') + get_nameList('qmmm')
-        mdoutNameList = get_nameList('cntrl') + get_nameList('qmmm')
+        newDict = self.cntrlDict
+        newDict.update(self.qmmmDict)
+        mdoutNameList = newDict.keys()
         return [
             SM(name="mdout",
                startReStr=r"\s*General\s*flags:",
@@ -869,7 +818,7 @@ class AMBERParser(AmberC.AMBERParserBase):
 
         ########################################
         # submatcher for MD
-        mddataNameList=get_nameList('mddata')
+        mddataNameList=self.mddataDict.keys()
         MDSubMatcher = SM(name='MDStep',
 #            startReStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS)",
             startReStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS\s*)",
@@ -921,10 +870,10 @@ class AMBERParser(AmberC.AMBERParserBase):
                        subFlags=SM.SubFlags.Unordered,
                        subMatchers=fileNameListGroupSubMatcher
                        ), # END SectionMethod
-                    SM(name='SectionMethod',
+                    SM(name='SectionTopology',
                        startReStr=r"\s*Here\s*is\s*the\s*input\s*file:",
                        forwardMatch=True,
-                       sections=['section_method'],
+                       sections=['section_system'],
                        subMatchers=[
                            # parse verbatim writeout of mdin file
                            mdinSubMatcher,
@@ -947,8 +896,8 @@ class AMBERParser(AmberC.AMBERParserBase):
 #                              endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
                               repeats=True,
                               forwardMatch=True,
-#                              sections=['section_single_configuration_calculation'],
-                              sections=['section_method', 'section_single_configuration_calculation'],
+                              #sections=['section_method', 'section_single_configuration_calculation'],
+                              sections=['section_single_configuration_calculation'],
                               subMatchers=[
                                   # MD
                                   MDSubMatcher
