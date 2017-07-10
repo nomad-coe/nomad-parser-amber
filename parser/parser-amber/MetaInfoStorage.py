@@ -35,6 +35,7 @@ class Container(object):
         self.Color = None
         self.PrintOnlyActive = None
         self.PrintOnlyNames = None
+        self.localDict = None
 
     def add(self, *args):
         for arg in args:
@@ -171,35 +172,123 @@ class Container(object):
                     if self.Name in arg["muteSections"]:
                         self.Active = False
 
-    def checkUpdateValue(self, item):
-        updateValue = False
-        if item.lookupdict:
-            for tests in item["depends"]:
-                depdict = item["depends"][depdict]
-                depmeet = 0
-                for depk, depv in depdict:
-                    lookupmap = item.lookupdict.values()
-                    if depk in lookupmap.metaName:
-                        if '!' in depv:
-                            if item.lookupdictmap.value!=depv:
-                                depmeet += 1
-                        if item.lookupdictmap.value==depv:
-                            depmeet += 1
-                if depmeet == len(depdict.keys()):
+    def checkUpdateValue(self, item, localdict):
+        # Updating values follows the following order:
+        #  1) If 'depends' is supplied (not empty or not None), 
+        #     the tests in the depends list will be checked in order.
+        #     If one of the tests is successful than the one of the 
+        #     values in 'assign' or 'value' will be updated for the item.
+        #     Here 'assign' will assign a new value in the given string and
+        #     'value' will assign the value of the given key item.
+        #     (Ex. : 'assign' : 'CG' will update the item with 'CG' while 
+        #     'value' : 'NATOM' will update the item with number of atoms 
+        #     returned by the value of NATOM key ,which is stored in lookup dict.)
+        #  2) If 'depends' is supplied but a lookup dictionary is not than 
+        #     only the values of attributes in the sections can be used for test.
+        #     The rest of the tests and assignments are updated as in case (1).
+        #  3) If 'depends' is not supplied, subfunction is used to update value.
+        #  4) If 'depends' and subfunction are not supplied but value of 
+        #     MetaInfoMap is supplied, the value will be assign directly from the value 
+        #     item.
+        #  5) If none of the above items are supplied, this function will return None 
+        #     to not update any values for the selected item.
+        #
+        # Check whether depends is supplied in the item.
+        updateValue = None
+        if "depends" in item:
+            if "lookupdict" in item:
+                if "test" in item["depends"]:
+                    updateValue, localdict = checkTestsDicts(item, localdict)
+                elif 'assign' in item["depends"]:
+                    updateValue = item["depends"]["assign"]
+                elif 'value' in item["depends"]:
+                    itemdepval = item["depends"]['value']
+                    if itemdepval in localdict:
+                        checkval = localdict[itemdepval]
+                    else:
+                        accessName, checkval = findNameInLookupDict(itemdepval, item["lookupdict"])
+                        localdict.update({itemdepval : checkval})
+                    updateValue = checkval
+            else:
+                if "test" in item["depends"]:
+                    updateValue, localdict = checkTestsAttr(item, localdict)
+                if 'assign' in item["depends"]:
+                    updateValue = item["depends"]["assign"]
+                elif 'value' in item["depends"]:
+                    itemdepval = item["depends"]['value']
+                    if itemdepval in localdict:
+                        checkval = localdict[itemdepval]
+                    else:
+                        attrdict = {deptest[0] : ''}
+                        attrdict = self.fetchAttr(attrdict)
+                        localdict.update(attrdict)
+                        checkval = attrdict[deptest[0]]
+                    updateValue = checkval
+        elif "subfunction" in item:
+            updateValue = item.subfunction(item)
+        elif "value" in item:
+            updateValue = item['value']
+        return updateValue, localdict
 
-                    updateValue = True
-        else:
-            for depdict in item["depends"]:
+    def checkTestsDicts(self, item, localdict):
+        for tests in item["depends"]:
+            depdict = item["depends"][tests]
+            for deptests in depdict["test"]:
                 depmeet = 0
-                depcopydict = depdict.copy()
-                attrdict = self.fetchAttr(depcopydict)
-                for depk, depv in depdict:
-                    if depk in attrdict:
-                        if attrdict[depk]==depv:
-                            depmeet += 1
-                if depmeet == len(depdict.keys()):
-                    updateValue = True
-        return updateValue
+                for deptest in deptests:
+                    if deptest[0] in localdict:
+                        checkval = localdict[deptest[0]]
+                    else:
+                        accessName, checkval = findNameInLookupDict(deptest[0], item.lookupdict)
+                        localdict.update({deptest[0] : checkval})
+                    if eval(str(checkval) + deptest[1]):
+                        depmeet += 1
+                if depmeet == len(deptests):
+                    if 'assign' in depdict:
+                        return depdict['assign'], localdict
+                    elif 'value' in depdict:
+                        if depdict['value'] in localdict:
+                            checkval = localdict[depdict['value']]
+                        else:
+                            accessName, checkval = findNameInLookupDict(depdict['value'], item.lookupdict)
+                            localdict.update({depdict['value'] : checkval})
+                        return checkval, localdict
+        return None, localdict
+
+    def checkTestsAttr(self, item, localdict):
+        for tests in item["depends"]:
+            depdict = item["depends"][tests]
+            for deptests in depdict["test"]:
+                depmeet = 0
+                for deptest in deptests:
+                    if deptest[0] in localdict:
+                        checkval = localdict[deptest[0]]
+                    else:
+                        attrdict = {deptest[0] : ''}
+                        attrdict = self.fetchAttr(attrdict)
+                        localdict.update(attrdict)
+                        checkval = attrdict[deptest[0]]
+                    if eval(str(checkval) + deptest[1]):
+                        depmeet += 1
+                if depmeet == len(deptests):
+                    if 'assign' in depdict:
+                        return depdict['assign'], localdict
+                    elif 'value' in depdict:
+                        if depdict['value'] in localdict:
+                            checkval = localdict[depdict['value']]
+                        else:
+                            attrdict = {depdict['value'] : ''}
+                            attrdict = self.fetchAttr(attrdict)
+                            localdict.update(attrdict)
+                            checkval = attrdict[deptest[0]]
+                        return checkval, localdict
+        return None, localdict
+
+    def findNameInLookupDict(self, metaname, lookupdict):
+        for item in lookupdict:
+            itemMap = lookupdict[item]
+            if metaname in itemMap.metaName:
+                return item, itemMap.value
 
     def updateBackendStorage(self, backend):
         for itemk in self.Storage.__dict__:
@@ -214,24 +303,21 @@ class Container(object):
                     backend.addValue(itemk, value)
 
     def accumulateDict(self, checkDict):
+        localdict = {}
         for itemk in checkDict:
             if itemk in self.Storage.__dict__:
                 itemv = checkDict[itemk]
-                updateValue = False
-                if itemv["depends"]:
-                    updateValue = self.checkUpdateValue(itemv)
-                else:
-                    updateValue = True
+                updateValue, localdict = self.checkUpdateValue(itemv, localdict)
                 if updateValue:
-                    self.Storage.__dict__[itemk]["val"]=itemv["value"]
+                    self.Storage.__dict__[itemk]["val"] = updateValue
                     self.Storage.__dict__[itemk]["act"] = True
                     self.Active = True
                     if "valueSize" in itemv:
                         if "sizeMetaName" in itemv:
-                            self.Storage.__dict__[itemv["sizeMetaName"]]=itemv["valueSize"]
-                    if "subfunction" in itemv:
-                        newValue = itemv["subfunction"](self, itemk, itemv)
-                        self.Storage.__dict__[itemk["val"]]=newvalue
+                            self.Storage.__dict__[itemv["sizeMetaName"]] = itemv["valueSize"]
+                    if "unitconverter" in itemv:
+                        newValue = itemv["unitconverter"](self, itemv)
+                        self.Storage.__dict__[itemk["val"]] = newvalue
 
     def __str__(self, caller=None, decorate='', color=None, printactive=None, onlynames=None):
         string = ''
