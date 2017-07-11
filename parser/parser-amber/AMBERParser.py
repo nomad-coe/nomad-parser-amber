@@ -7,7 +7,7 @@ import nomadcore.ActivateLogging
 from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import AncillaryParser, mainFunction, ParsingContext
 from nomadcore.simple_parser import SimpleMatcher as SM
-from AMBERDictionary import set_excludeList, set_includeList
+from AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary
 from AMBERCommon import write_mdin
 import AMBERCommon as AmberC
 import trajectory_reader as TrajRead
@@ -83,7 +83,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         This allows a consistent setting and resetting of the variables,
         when the parsing starts and when a section_run closes.
         """
-        self.metaIntoStorage = None
         self.secMethodIndex = None
         self.secSystemDescriptionIndex = None
         self.inputMethodIndex = None
@@ -246,17 +245,20 @@ class AMBERParser(AmberC.AMBERParserBase):
 #            else:
 #                self.MD = False
 #        if self.MD:
-        sampling_method = "molecular_dynamics"
+
+#       sampling_method = "molecular_dynamics"
+
 ##        elif len(self.singleConfCalcs) > 1: 
 #            pass # to do
 #        else:
 #            return
         # check for geometry optimization convergence
-        samplingGIndex = backend.openSection("section_sampling_method")
-        backend.addValue("sampling_method", sampling_method)
-        backend.closeSection("section_sampling_method", samplingGIndex)
+
+#        samplingGIndex = backend.openSection("section_sampling_method")
+#        backend.addValue("sampling_method", sampling_method)
+#        backend.closeSection("section_sampling_method", samplingGIndex)
         frameSequenceGIndex = backend.openSection("section_frame_sequence")
-        backend.addValue("frame_sequence_to_sampling_ref", samplingGIndex)
+#        backend.addValue("frame_sequence_to_sampling_ref", samplingGIndex)
         backend.addArrayValues("frame_sequence_local_frames_ref", np.asarray(self.singleConfCalcs))
         backend.closeSection("section_frame_sequence", frameSequenceGIndex)
 
@@ -380,16 +382,22 @@ class AMBERParser(AmberC.AMBERParserBase):
 
         Writes atomic positions, atom labels and lattice vectors.
         """
-        # check if control keywords were found or verbatim_writeout is false
-        #verbatim_writeout = True
+        # check if control keywords were found 
+        section_sampling_Dict = get_updateDictionary(self, 'sampling')
+        updateDict = {
+            'startSection' : [['section_sampling_method']],
+            #'muteSections' : [['section_system']],
+            'dictionary' : section_sampling_Dict
+            }
+        self.metaStorage.update(updateDict)
+        samplingGIndex = backend.openSection("section_sampling_method")
+        self.metaStorage.updateBackend(backend, 
+                startsection=['section_sampling_method'],
+                autoopenclose=False)
+        backend.closeSection("section_sampling_method", samplingGIndex)
+
+
         counter = 0
-        write_mdin(self, backend=backend,
-            metaInfoEnv=self.metaInfoEnv,
-            valuesDict=section.simpleValues,
-            metaNameStart='x_amber_mdin',
-            writeCheck=True,
-            location='verbatim writeout of mdin',
-            logger=LOGGER)
         exclude_list = set_excludeList(self)
         include_list = set_includeList()
         #for name in self.metaInfoEnv.infoKinds:
@@ -516,6 +524,22 @@ class AMBERParser(AmberC.AMBERParserBase):
             print(self.atompositions)
             self.atompositions = self.trajectory.iread()
 
+        section_frameseq_Dict = get_updateDictionary(self, 'frameseq')
+        section_singlecalc_Dict = get_updateDictionary(self, 'singleconfcalc')
+        section_frameseq_single_Dict = section_frameseq_Dict
+        section_frameseq_single_Dict.update(section_singlecalc_Dict)
+        updateDict = {
+            'startSection' : [
+                ['section_single_configuration_calculaion'],
+                ['section_frame_sequence']],
+            'muteSections' : [['section_method']],
+            'dictionary' : section_frameseq_single_Dict
+            }
+        self.metaStorage.update(updateDict)
+        self.metaStorage.updateBackend(backend, 
+                startsection=['section_frame_sequence'],
+                autoopenclose=False)
+
     def setStartingPointCalculation(self, parser):
         backend = parser.backend
         backend.openSection('section_calculation_to_calculation_refs')
@@ -526,7 +550,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         return None
     
     def check_namelist_store(self, parser, lastLine, stopOnMatchRe, quitOnMatchRe, 
-            metaNameStart, matchNameList, onlyCaseSensitive, stopOnFirstLine):
+            metaNameStart, matchNameList, matchNameDict, onlyCaseSensitive, stopOnFirstLine):
         stopOnMatch = False
         if stopOnMatchRe.findall(lastLine):
             stopOnMatch = True
@@ -561,11 +585,13 @@ class AMBERParser(AmberC.AMBERParserBase):
                             if k in list(parser.lastMatch.keys()):
                                 parser.lastMatch[k]=v
                             else:
-                                parser.backend.addValue(k, v)
+                                matchNameDict[k].value=v
+                                matchNameDict[k].activeInfo=True
+                                #parser.backend.addValue(k, v)
             return False
 
     def adHoc_read_namelist_stop_parsing(self, parser, stopOnMatchStr, quitOnMatchStr, 
-            metaNameStart, matchNameList, onlyCaseSensitive, stopOnFirstLine):
+            metaNameStart, matchNameList, matchNameDict, onlyCaseSensitive, stopOnFirstLine):
 #        currentContext = parser.context[len(parser.context) - 1]
 #        currentMatcherId = currentContext.compiledMatcher.matcher.index.
         lastLine = parser.fIn.fInLine
@@ -579,7 +605,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         if self.check_namelist_store(parser, lastLine, 
                 stopOnMatchRe, quitOnMatchRe,
                 metaNameStart, matchNameList, 
-                onlyCaseSensitive, 
+                matchNameDict, onlyCaseSensitive, 
                 stopOnFirstLine) is not True:
             while True:
 #                lastLine = parser.fIn.readline()
@@ -596,7 +622,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                     if self.check_namelist_store(parser, lastLine, 
                             stopOnMatchRe, quitOnMatchRe, 
                             metaNameStart, matchNameList, 
-                            onlyCaseSensitive,
+                            matchNameDict, onlyCaseSensitive,
                             stopOnFirstLine):
                         break
                     else:
@@ -626,6 +652,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                       quitOnMatchStr=None,
                       metaNameStart="x_amber_mdin_", 
                       matchNameList=cntrlNameList,
+                      matchNameDict=self.cntrlDict,
                       onlyCaseSensitive=True,
                       stopOnFirstLine=True)
                       )
@@ -644,6 +671,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                        quitOnMatchStr=None,
                        metaNameStart="x_amber_mdin_", 
                        matchNameList=wtNameList,
+                       matchNameDict=self.wtDict,
                        onlyCaseSensitive=False,
                        stopOnFirstLine=True)
                        )
@@ -662,6 +690,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                       quitOnMatchStr=None,
                       metaNameStart="x_amber_mdin_", 
                       matchNameList=ewaldNameList,
+                      matchNameDict=self.ewaldDict,
                       onlyCaseSensitive=True,
                       stopOnFirstLine=True)
                       )
@@ -680,6 +709,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                       quitOnMatchStr=None,
                       metaNameStart="x_amber_mdin_", 
                       matchNameList=qmmmNameList,
+                      matchNameDict=self.qmmmDict,
                       onlyCaseSensitive=True,
                       stopOnFirstLine=True)
                       )
@@ -705,6 +735,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                       quitOnMatchStr=None,
                       metaNameStart="x_amber_parm_", 
                       matchNameList=parmNameList,
+                      matchNameDict=self.parmDict,
                       onlyCaseSensitive=True,
                       stopOnFirstLine=True)
                       )
@@ -730,6 +761,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                       quitOnMatchStr=None,
                       metaNameStart="x_amber_mdin_", 
                       matchNameList=mdoutNameList,
+                      matchNameDict=newDict,
                       onlyCaseSensitive=True,
                       stopOnFirstLine=True)
                       )
@@ -839,6 +871,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                    quitOnMatchStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
                    metaNameStart="x_amber_mdout_", 
                    matchNameList=mddataNameList,
+                   matchNameDict=self.mddataDict,
                    onlyCaseSensitive=True,
                    stopOnFirstLine=False)
                    )

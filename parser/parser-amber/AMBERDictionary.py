@@ -634,7 +634,7 @@ def get_updateDictionary(self, defname):
             lookupdict=self.cntrlDict
             ),
 #       'geometry_optimization_threshold_force' : MetaInfoMap(startpage),
-        'settings_barostat' : MetaInfoMap(startpage,
+        'x_amber_barostat_type' : MetaInfoMap(startpage,
             depends=[
                 {'test' : [['imin', '== 0'], 
                            ['ntp', '!= 0'], 
@@ -645,18 +645,20 @@ def get_updateDictionary(self, defname):
                            ['barostat', '== 2']],
                  'assign' : 'Monte Carlo barostat'} 
                 ],
-            lookupdict=self.cntrlDict
+            lookupdict=self.cntrlDict,
+            activeSections=['settings_barostat']
             ),
-        'settings_integrator' : MetaInfoMap(startpage,
+        'x_amber_integrator_type' : MetaInfoMap(startpage,
             depends=[
                 {'test' : [['imin', '== 0']],
                  'assign' : 'verlet'}, 
                 {'test' : [['imin', '== 1']],
                  'assign' : 'minimization'}
                 ],
-            lookupdict=self.cntrlDict
+            lookupdict=self.cntrlDict,
+            activeSections=['settings_integrator']
             ),
-        'settings_thermostat' : MetaInfoMap(startpage,
+        'x_amber_thermostat_type' : MetaInfoMap(startpage,
             depends=[
                 {'test' : [['imin', '== 0'], ['ntt', '== 1']],
                  'assign' : 'Constant Temperature Scaling with weak-coupling'}, 
@@ -669,7 +671,8 @@ def get_updateDictionary(self, defname):
                 {'test' : [['imin', '== 0'], ['ntt', '== 10']],
                  'assign' : 'RESPA Stochastic Isokinetic Nose-Hoover'} 
                 ],
-            lookupdict=self.cntrlDict
+            lookupdict=self.cntrlDict,
+            activeSections=['settings_thermostat']
             ),
         }
 
@@ -717,18 +720,18 @@ def get_updateDictionary(self, defname):
         }
    
     frameseq = { 
-        'frame_sequence_conserved_quantity_frames' : MetaInfoMap(startpage),
+        'frame_sequence_conserved_quantity_frames' : MetaInfoMap(startpage,
             depends=[{'value' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_conserved_quantity_stats' : MetaInfoMap(startpage),
-        'frame_sequence_conserved_quantity' : MetaInfoMap(startpage),
+        'frame_sequence_conserved_quantity' : MetaInfoMap(startpage,
             depends=[{'value' : 'RESTRAINT'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_continuation_kind' : MetaInfoMap(startpage),
         'frame_sequence_external_url' : MetaInfoMap(startpage),
-        'frame_sequence_kinetic_energy_frames' : MetaInfoMap(startpage),
+        'frame_sequence_kinetic_energy_frames' : MetaInfoMap(startpage,
             depends=[{'value' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
@@ -738,7 +741,7 @@ def get_updateDictionary(self, defname):
             lookupdict=self.mddataDict
             ),
         'frame_sequence_local_frames_ref' : MetaInfoMap(startpage),
-        'frame_sequence_potential_energy_frames' : MetaInfoMap(startpage),
+        'frame_sequence_potential_energy_frames' : MetaInfoMap(startpage,
             depends=[{'value' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
@@ -747,7 +750,7 @@ def get_updateDictionary(self, defname):
             depends=[{'value' : 'EPtot'}],
             lookupdict=self.mddataDict
             ),
-        'frame_sequence_pressure_frames' : MetaInfoMap(startpage),
+        'frame_sequence_pressure_frames' : MetaInfoMap(startpage,
             depends=[{'value' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
@@ -756,7 +759,7 @@ def get_updateDictionary(self, defname):
             depends=[{'value' : 'PRESS'}],
             lookupdict=self.mddataDict
             ),
-        'frame_sequence_temperature_frames' : MetaInfoMap(startpage),
+        'frame_sequence_temperature_frames' : MetaInfoMap(startpage,
             depends=[{'value' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
@@ -790,38 +793,38 @@ def get_updateDictionary(self, defname):
 
     topology = {
         'molecule_to_molecule_type_map' : MetaInfoMap(startpage),
-        'number_of_topology_atoms' : MetaInfoMap(startpage),
+        'number_of_topology_atoms' : MetaInfoMap(startpage,
             depends=[{'value' : 'NATOM'}],
             lookupdict=self.parmDict
             ),
         'number_of_topology_molecules' : MetaInfoMap(startpage),
-        'topology_force_field_name' : MetaInfoMap(startpage)
+        'topology_force_field_name' : MetaInfoMap(startpage,
             value='Amber Force Field',
-            ),
+            )
         }
 
     atom_list = {
         'atom_to_molecule' : MetaInfoMap(startpage,
-            subfunction=func_atom_to_mol()
+            #subfunction=func_atom_to_mol()
             ),
         'number_of_electrons' : MetaInfoMap(startpage,
             value=0,
             ),
-        'atom_labels' : MetaInfoMap(startpage),
-            subfunction=func_atom_labels()
+        'atom_labels' : MetaInfoMap(startpage,
+            #subfunction=func_atom_labels()
             ),
         'atom_positions' : MetaInfoMap(startpage,
-            subfunction=func_atom_positions()
+            #subfunction=func_atom_positions()
             ),
         'configuration_periodic_dimensions' : MetaInfoMap(startpage,
-            subfunction=func_pbc()
+            #subfunction=func_pbc()
             ),
         'embedded_system' : MetaInfoMap(startpage),
         'lattice_vectors' : MetaInfoMap(startpage,
-            subfunction=func_lat_vec()
+            #subfunction=func_lat_vec()
             ),
         'simulation_cell' : MetaInfoMap(startpage,
-            subfunction=func_unitcell()
+            #subfunction=func_unitcell()
             )
         }
 
@@ -862,15 +865,19 @@ def get_updateDictionary(self, defname):
     if defname == 'system':
         dictionary = systemDict
     elif defname == 'topology':
-        dictionary = topologyDict
+        dictionary = topology
+    elif defname == 'singleconfcalc':
+        dictionary = singleconfcalc
+    elif defname == 'frameseq':
+        dictionary = frameseq
     elif defname == 'atom_type':
-        dictionary = atomtypeDict
+        dictionary = atom_type
     elif defname == 'molecule_type':
         dictionary = moltypeDict
     elif defname == 'interaction':
-        dictionary = interDict
+        dictionary = interaction
     elif defname == 'sampling':
-        dictionary = samplingDict
+        dictionary = sampling
     else:
         dictionary = singleconfcalclist
     return MapDictionary(dictionary)

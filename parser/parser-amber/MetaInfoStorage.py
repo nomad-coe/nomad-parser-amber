@@ -1,6 +1,7 @@
 import setup_paths
 import numpy as np
 from nomadcore.unit_conversion.unit_conversion import convert_unit
+from contextlib import contextmanager
 import logging
 import json
 import os
@@ -104,35 +105,35 @@ class Container(object):
 
     def updateBackend(self, backend, startsection=None, autoopenclose=False):
         if startsection:
-            if (self.Name in startsection or 
-                self.Name == startsection):
+            if self.Name == startsection:
                 if autoopenclose:
-                    with self.autosection(self.Name):
-                        self.updateBackendValues(self, backend)
+                    with self.autosection(backend, self.Name):
+                        self.updateBackendValues(backend)
                 else:
-                    self.updateBackendValues(self, backend)
+                    self.updateBackendValues(backend)
             else:
                 if self.Containers:
                     for module in self.Containers:
                         module.updateBackend(backend, startsection, autoopenclose)
         else:
             if autoopenclose:
-                with self.autosection(self.Name):
-                    self.updateBackendValues(self, backend)
+                with self.autosection(backend, self.Name):
+                    self.updateBackendValues(backend)
             else:
-                self.updateBackendValues(self, backend)
+                self.updateBackendValues(backend)
 
-    def autosection(self, sectionname):
-        self.opensection(sectionname)
+    @contextmanager
+    def autosection(self, backend, name):
+        self.gid = backend.openSection(name)
         yield self.gid
-        self.closesection(sectionname)
+        backend.closeSection(name, self.gid)
 
-    def opensection(self, backend, sectionname):
-        self.gid = backend.openSection(sectionname)
+    def opensection(self, backend, name):
+        self.gid = backend.openSection(name)
         yield self.gid
 
-    def closesection(self, backend, sectionname):
-        backend.closeSection(sectionname, self.gid)
+    def closesection(self, backend, name):
+        backend.closeSection(name, self.gid)
 
     def fetchAttr(self, resdict):
         for item in resdict:
@@ -151,7 +152,7 @@ class Container(object):
 
     def updateBackendValues(self, backend):
         if self.Storage:
-            self.updateBackendStorage()
+            self.updateBackendStorage(backend)
             self.Active = False
         if self.Containers:
             for module in self.Containers:
@@ -197,25 +198,25 @@ class Container(object):
         updateValue = None
         if "depends" in item:
             if "lookupdict" in item:
-                if "test" in item["depends"]:
-                    updateValue, localdict = checkTestsDicts(item, localdict)
-                elif 'assign' in item["depends"]:
-                    updateValue = item["depends"]["assign"]
-                elif 'value' in item["depends"]:
-                    itemdepval = item["depends"]['value']
+                if "test" in item["depends"][0]:
+                    updateValue, localdict = self.checkTestsDicts(item, localdict)
+                elif 'assign' in item["depends"][0]:
+                    updateValue = item["depends"][0]["assign"]
+                elif 'value' in item["depends"][0]:
+                    itemdepval = item["depends"][0]['value']
                     if itemdepval in localdict:
                         checkval = localdict[itemdepval]
                     else:
-                        accessName, checkval = findNameInLookupDict(itemdepval, item["lookupdict"])
+                        accessName, checkval = self.findNameInLookupDict(itemdepval, item["lookupdict"])
                         localdict.update({itemdepval : checkval})
                     updateValue = checkval
             else:
-                if "test" in item["depends"]:
-                    updateValue, localdict = checkTestsAttr(item, localdict)
-                if 'assign' in item["depends"]:
-                    updateValue = item["depends"]["assign"]
-                elif 'value' in item["depends"]:
-                    itemdepval = item["depends"]['value']
+                if "test" in item["depends"][0]:
+                    updateValue, localdict = self.checkTestsAttr(item, localdict)
+                if 'assign' in item["depends"][0]:
+                    updateValue = item["depends"][0]["assign"]
+                elif 'value' in item["depends"][0]:
+                    itemdepval = item["depends"][0]['value']
                     if itemdepval in localdict:
                         checkval = localdict[itemdepval]
                     else:
@@ -231,18 +232,17 @@ class Container(object):
         return updateValue, localdict
 
     def checkTestsDicts(self, item, localdict):
-        for tests in item["depends"]:
-            depdict = item["depends"][tests]
-            for deptests in depdict["test"]:
-                depmeet = 0
-                for deptest in deptests:
-                    if deptest[0] in localdict:
-                        checkval = localdict[deptest[0]]
-                    else:
-                        accessName, checkval = findNameInLookupDict(deptest[0], item.lookupdict)
-                        localdict.update({deptest[0] : checkval})
-                    if eval(str(checkval) + deptest[1]):
-                        depmeet += 1
+        for depdict in item["depends"]:
+            deptests = depdict["test"]
+            depmeet = 0
+            for deptest in deptests:
+                if deptest[0] in localdict:
+                    checkval = localdict[deptest[0]]
+                else:
+                    accessName, checkval = self.findNameInLookupDict(deptest[0], item.lookupdict)
+                    localdict.update({deptest[0] : checkval})
+                if eval(str(checkval) + deptest[1]):
+                    depmeet += 1
                 if depmeet == len(deptests):
                     if 'assign' in depdict:
                         return depdict['assign'], localdict
@@ -250,14 +250,15 @@ class Container(object):
                         if depdict['value'] in localdict:
                             checkval = localdict[depdict['value']]
                         else:
-                            accessName, checkval = findNameInLookupDict(depdict['value'], item.lookupdict)
+                            accessName, checkval = self.findNameInLookupDict(depdict['value'], 
+                                    item.lookupdict)
                             localdict.update({depdict['value'] : checkval})
                         return checkval, localdict
         return None, localdict
 
     def checkTestsAttr(self, item, localdict):
-        for tests in item["depends"]:
-            depdict = item["depends"][tests]
+        for depdict in item["depends"]:
+            #depdict = item["depends"][tests]
             for deptests in depdict["test"]:
                 depmeet = 0
                 for deptest in deptests:
@@ -305,19 +306,31 @@ class Container(object):
     def accumulateDict(self, checkDict):
         localdict = {}
         for itemk in checkDict:
-            if itemk in self.Storage.__dict__:
-                itemv = checkDict[itemk]
-                updateValue, localdict = self.checkUpdateValue(itemv, localdict)
-                if updateValue:
+            itemv = checkDict[itemk]
+            updateValue, localdict = self.checkUpdateValue(itemv, localdict)
+            if updateValue:
+                if itemk in self.Storage.__dict__:
                     self.Storage.__dict__[itemk]["val"] = updateValue
                     self.Storage.__dict__[itemk]["act"] = True
-                    self.Active = True
-                    if "valueSize" in itemv:
-                        if "sizeMetaName" in itemv:
-                            self.Storage.__dict__[itemv["sizeMetaName"]] = itemv["valueSize"]
-                    if "unitconverter" in itemv:
-                        newValue = itemv["unitconverter"](self, itemv)
-                        self.Storage.__dict__[itemk["val"]] = newvalue
+                elif (itemk.startswith('x_') and 
+                      itemv.activeSection == self.Name):
+                    attrvalues = {
+                            'act' : True, 
+                            'val' : updateValue, 
+                            'kind': None, 
+                            'dtyp': "C",
+                            'unit': None,
+                            'size': [],
+                            'refs': None
+                            }
+                    self.Storage.__dict__.update({itemk : attrvalues})
+                self.Active = True
+                if "valueSize" in itemv:
+                    if "sizeMetaName" in itemv:
+                        self.Storage.__dict__[itemv["sizeMetaName"]] = itemv["valueSize"]
+                if "unitconverter" in itemv:
+                    newValue = itemv["unitconverter"](self, itemv)
+                    self.Storage.__dict__[itemk["val"]] = newvalue
 
     def __str__(self, caller=None, decorate='', color=None, printactive=None, onlynames=None):
         string = ''
