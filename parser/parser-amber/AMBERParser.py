@@ -7,8 +7,7 @@ import nomadcore.ActivateLogging
 from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import AncillaryParser, mainFunction, ParsingContext
 from nomadcore.simple_parser import SimpleMatcher as SM
-from AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary
-from AMBERCommon import write_mdin
+from AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary, getList_MetaStrInDict
 import AMBERCommon as AmberC
 import trajectory_reader as TrajRead
 import logging
@@ -85,6 +84,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         """
         self.secMethodIndex = None
         self.secSystemDescriptionIndex = None
+        self.samplingGIndex = None
         self.inputMethodIndex = None
         self.mainMethodIndex = None
         self.mainCalcIndex = None
@@ -219,14 +219,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         # write trajectory
         valuesDict = section.simpleValues
         location = 'verbatim writeout of mdin',
-        # write settings of control.in
-        write_mdin(self, backend=backend,
-            metaInfoEnv=self.metaInfoEnv,
-            valuesDict=valuesDict,
-            metaNameStart='x_amber_mdin',
-            writeCheck=False,
-            location=location,
-            logger=LOGGER)
         # write settings of aims output from the parsed control.in
         for k,v in section.simpleValues.items():
             if (k.startswith('x_amber_mdin_') or 
@@ -258,7 +250,10 @@ class AMBERParser(AmberC.AMBERParserBase):
 #        backend.addValue("sampling_method", sampling_method)
 #        backend.closeSection("section_sampling_method", samplingGIndex)
         frameSequenceGIndex = backend.openSection("section_frame_sequence")
-#        backend.addValue("frame_sequence_to_sampling_ref", samplingGIndex)
+        self.metaStorage.updateBackend(backend, 
+                startsection=['section_frame_sequence'],
+                autoopenclose=False)
+        backend.addValue("frame_sequence_to_sampling_ref", self.samplingGIndex)
         backend.addArrayValues("frame_sequence_local_frames_ref", np.asarray(self.singleConfCalcs))
         backend.closeSection("section_frame_sequence", frameSequenceGIndex)
 
@@ -346,13 +341,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         # check if control keywords were found or verbatim_writeout is false
         #verbatim_writeout = True
         counter = 0
-        write_mdin(self, backend=backend,
-            metaInfoEnv=self.metaInfoEnv,
-            valuesDict=section.simpleValues,
-            metaNameStart='x_amber_mdin',
-            writeCheck=True,
-            location='verbatim writeout of mdin',
-            logger=LOGGER)
         exclude_list = set_excludeList(self)
         include_list = set_includeList()
         #for name in self.metaInfoEnv.infoKinds:
@@ -389,12 +377,12 @@ class AMBERParser(AmberC.AMBERParserBase):
             #'muteSections' : [['section_system']],
             'dictionary' : section_sampling_Dict
             }
+        self.samplingGIndex = backend.openSection("section_sampling_method")
         self.metaStorage.update(updateDict)
-        samplingGIndex = backend.openSection("section_sampling_method")
         self.metaStorage.updateBackend(backend, 
                 startsection=['section_sampling_method'],
                 autoopenclose=False)
-        backend.closeSection("section_sampling_method", samplingGIndex)
+        backend.closeSection("section_sampling_method", self.samplingGIndex)
 
 
         counter = 0
@@ -530,15 +518,17 @@ class AMBERParser(AmberC.AMBERParserBase):
         section_frameseq_single_Dict.update(section_singlecalc_Dict)
         updateDict = {
             'startSection' : [
-                ['section_single_configuration_calculaion'],
+                ['section_single_configuration_calculation'],
                 ['section_frame_sequence']],
             'muteSections' : [['section_method']],
             'dictionary' : section_frameseq_single_Dict
             }
         self.metaStorage.update(updateDict)
+        singleGIndex = backend.openSection("section_single_configuration_calculation")
         self.metaStorage.updateBackend(backend, 
-                startsection=['section_frame_sequence'],
+                startsection=['section_single_configuration_calculation'],
                 autoopenclose=False)
+        backend.closeSection("section_single_configuration_calculation", singleGIndex)
 
     def setStartingPointCalculation(self, parser):
         backend = parser.backend
@@ -633,10 +623,10 @@ class AMBERParser(AmberC.AMBERParserBase):
                        'x_amber_settings_integrator_dt__ps': '0.001', 
                        'x_amber_ensemble_type':              'NVE'
                      },
-        cntrlNameList=self.cntrlDict.keys()
-        ewaldNameList=self.ewaldDict.keys()
-        qmmmNameList=self.qmmmDict.keys()
-        wtNameList=self.wtDict.keys()
+        cntrlNameList=getList_MetaStrInDict(self.cntrlDict)
+        ewaldNameList=getList_MetaStrInDict(self.ewaldDict)
+        qmmmNameList=getList_MetaStrInDict(self.qmmmDict)
+        wtNameList=getList_MetaStrInDict(self.wtDict)
         return [
             SM(name="cntrl",
                startReStr=r"\s*&cntrl",
@@ -717,7 +707,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             ]
 
     def build_parmKeywordsSimpleMatchers(self):
-        parmNameList=self.parmDict.keys()
+        parmNameList=getList_MetaStrInDict(self.parmDict)
         return [
             SM(name="parm",
                startReStr=r"\|\s*Version\s*=\s*(?P<x_amber_parm_file_version>[0-9.eEdD]+)" + 
@@ -745,7 +735,7 @@ class AMBERParser(AmberC.AMBERParserBase):
     def build_mdoutKeywordsSimpleMatchers(self):
         newDict = self.cntrlDict
         newDict.update(self.qmmmDict)
-        mdoutNameList = newDict.keys()
+        mdoutNameList = getList_MetaStrInDict(newDict)
         return [
             SM(name="mdout",
                startReStr=r"\s*General\s*flags:",
@@ -850,7 +840,7 @@ class AMBERParser(AmberC.AMBERParserBase):
 
         ########################################
         # submatcher for MD
-        mddataNameList=self.mddataDict.keys()
+        mddataNameList=getList_MetaStrInDict(self.mddataDict)
         MDSubMatcher = SM(name='MDStep',
 #            startReStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS)",
             startReStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS\s*)",

@@ -200,23 +200,23 @@ class Container(object):
             if "lookupdict" in item:
                 if "test" in item["depends"][0]:
                     updateValue, localdict = self.checkTestsDicts(item, localdict)
-                elif 'assign' in item["depends"][0]:
+                elif "assign" in item["depends"][0]:
                     updateValue = item["depends"][0]["assign"]
-                elif 'value' in item["depends"][0]:
-                    itemdepval = item["depends"][0]['value']
+                elif "value" in item["depends"][0]:
+                    itemdepval = item["depends"][0]["value"]
                     if itemdepval in localdict:
                         checkval = localdict[itemdepval]
                     else:
-                        accessName, checkval = self.findNameInLookupDict(itemdepval, item["lookupdict"])
+                        accessName, checkval = self.findNameInLookupDict(itemdepval, item.lookupdict)
                         localdict.update({itemdepval : checkval})
                     updateValue = checkval
             else:
                 if "test" in item["depends"][0]:
                     updateValue, localdict = self.checkTestsAttr(item, localdict)
-                if 'assign' in item["depends"][0]:
+                elif "assign" in item["depends"][0]:
                     updateValue = item["depends"][0]["assign"]
-                elif 'value' in item["depends"][0]:
-                    itemdepval = item["depends"][0]['value']
+                elif "value" in item["depends"][0]:
+                    itemdepval = item["depends"][0]["value"]
                     if itemdepval in localdict:
                         checkval = localdict[itemdepval]
                     else:
@@ -288,7 +288,8 @@ class Container(object):
     def findNameInLookupDict(self, metaname, lookupdict):
         for item in lookupdict:
             itemMap = lookupdict[item]
-            if metaname in itemMap.metaName:
+            #if metaname in itemMap.metaName:
+            if metaname in itemMap.matchStr:
                 return item, itemMap.value
 
     def updateBackendStorage(self, backend):

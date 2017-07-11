@@ -5,7 +5,9 @@ from nomadcore.unit_conversion.unit_conversion import convert_unit
 from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import mainFunction
 from nomadcore.simple_parser import SimpleMatcher as SM
-from AMBERDictionary import get_nameList, get_fileListDict, set_excludeList, set_includeList
+from AMBERDictionary import get_nameListDict, get_fileListDict, set_excludeList, set_includeList
+from MetaInfoStorage import COMMON_META_INFO_PATH, PUBLIC_META_INFO_PATH
+import MetaInfoStorage as mStore
 import logging
 import json
 import os
@@ -27,23 +29,14 @@ def get_metaInfo(self):
                                          dependencyLoader=None, 
                                          extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS, 
                                          uri=None)
-    metaInfoEnv = set_metaInfoEnv(metaInfoEnv, 'mdin', get_nameList('cntrl'), 'C', ["x_amber_mdin_method"])
-    metaInfoEnv = set_metaInfoEnv(metaInfoEnv, 'mdin', get_nameList('ewald'), 'C', ["x_amber_mdin_method"])
-    metaInfoEnv = set_metaInfoEnv(metaInfoEnv, 'mdin', get_nameList('qmmm'), 'C', ["x_amber_mdin_method"])
-    metaInfoEnv = set_metaInfoEnv(metaInfoEnv, 'parm', get_nameList('parm'), 'C', ["x_amber_mdin_method"])
     metaInfoEnv = set_section_metaInfoEnv(metaInfoEnv, 'section', ['input_output_files'], 'type_section', False, ["section_run"])
-#    metaInfoEnv = set_section_metaInfoEnv(metaInfoEnv, 'mdin_file', 
-#                                          ['input_output_files'], 'type_abstract_document_content', 
-#                                          False, ["x_amber_section_input_output_files"])
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.fileDict)
-    metaInfoEnv = set_metaInfoEnv(metaInfoEnv, 'mdout', get_nameList('mddata'), 'C', ["section_single_configuration_calculation"])
-#    metaInfoEnv = set_metaInfoEnv(metaInfoEnv, 'mdout', get_nameList('mddata'), 'C', ["x_amber_mdout_single_configuration_calculation"])
-    metaInfoEnv = set_metaInfoEnv(metaInfoEnv, 'parm', 
-                                  [ 'flags',           'box_info',
-                                    'unitcell_radius', 'total_memory',
-                                    'file_format',     'file_version', 
-                                    'file_date',       'file_time'], 
-                                  'C', ["x_amber_mdin_method"])
+    metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.cntrlDict)
+    metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.ewaldDict)
+    metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.qmmmDict)
+    metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.parmDict)
+    metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.mddataDict)
+    metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.extraDict) 
     return metaInfoEnv
 
 def set_section_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, repeatingSection, supraNames):
@@ -109,64 +102,33 @@ def set_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, supraNames):
 
     return infoEnv
 
-def write_mdin(self, backend, metaInfoEnv, metaNameStart, valuesDict, writeCheck, location, logger):
-    """Writes the values of the mdin file.
-
-    Write the last occurrence of a keyword, i.e. [-1], since aims uses the last occurrence of a keyword.
-
-    ATTENTION
-    backend.superBackend is used here instead of only the backend to write the JSON values,
-    since this allows to bybass the caching setting which was used to collect the values for processing.
-    However, this also bypasses the checking of validity of the metadata name by the backend.
-    The scala part will check the validity nevertheless.
-
-    Args:
-        backend: Class that takes care of writing and caching of metadata.
-        metainfoenv: Loaded metadata.
-        valuesdict: Dictionary that contains the cached values of a section.
-        writecheck: Boolean that determines whether the keywords related to the ?? should be written.
-        location: A string that is used to specify where more than one setting was found.
-        logger: Logging object where messages should be written to.
-    """
-    # list of excluded metadata for writeout
-    # namelist values at metdata are only needed to detect 
-    # the type of simulation from cntrl not to writeout to backend.
-    excludelist = set_excludeList(self)
-    includelist = set_includeList()
-    # write settings
-    for k,v in valuesDict.items():
-        if (k.startswith('x_amber_mdin_') or 
-            k.startswith('x_amber_mdout_') or
-            k.startswith('x_amber_parm_')):
-            if (k     in excludelist and 
-                k not in includelist):
-                continue
-            # default writeout
-            else:
-                # convert keyword values of mdin which are strings to lowercase for consistency
-                if isinstance(v[-1], str):
-                    value = v[-1].lower()
-                else:
-                    value = v[-1]
-                backend.superBackend.addValue(k, value)
-    #if writecheck:
-    #    return 1
-
-    # distinguish between cntrl namelist 
-    if metaNameStart == 'x_amber_mdin':
-        Write = False
-    elif metaNameStart == 'x_amber_mdinout':
-        Write = True
-    else:
-        logger.error("Unknown metaNameStart %s in function in %s. Please correct." % (metaNameStart, os.path.basename(__file__)))
-        return
-
 class AMBERParserBase(object):
     """Base class for Amber parsers"""
     def __init__(self,cachingLevelForMetaName=None, coverageIgnoreList=None,
                  re_program_name=None):
+        self.metaStorage = mStore.Container('section_run')
+        exclude_dict = { 
+            'section_run' : [
+            'section_processor_info', 
+            'section_processor_log', 
+            'section_springer_material',
+            'section_repository_info'
+            ]}
+        jsonmetadata = mStore.JsonMetaInfo(
+                COMMON_META_INFO_PATH, 
+                PUBLIC_META_INFO_PATH,
+                META_INFO_PATH
+                )
+        self.metaStorage.build(jsonmetadata, 'section_run', exclude_dict)
         self.re_program_name = re_program_name
         self.fileDict = get_fileListDict()
+        self.cntrlDict = get_nameListDict('cntrl')
+        self.ewaldDict = get_nameListDict('ewald')
+        self.qmmmDict = get_nameListDict('qmmm')
+        self.wtDict = get_nameListDict('wt')
+        self.parmDict = get_nameListDict('parm')
+        self.mddataDict = get_nameListDict('mddata')
+        self.extraDict = get_nameListDict('extra')
         self.parserInfo = PARSER_INFO_DEFAULT.copy()
         self.metaInfoEnv = get_metaInfo(self)
 #        self.cachingLevelForMetaName = {
@@ -212,10 +174,5 @@ class AMBERParserBase(object):
 
     def build_subMatchers(self):
         return []
-
-#class MetaInfoStorageBase(object):
-#    """Base class for meta info storage"""
-#    def __init__(self,cachingLevelForMetaName=None, coverageIgnoreList=None):
-#        self.re_program_name = re_program_name
 
 

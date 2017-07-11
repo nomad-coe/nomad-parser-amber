@@ -117,7 +117,10 @@ class MapDictionary(dict):
                         metaStr = metaStr + v.metaHeader + '_'
                     if v.metaNameTag:
                         metaStr = metaStr + v.metaNameTag + '_'
-                    self[metaStr + v.metaName] = v
+                    metaStr = metaStr + v.metaName
+                    self[metaStr] = v
+                    if metaStr != k:
+                        self.pop(k, None)
 
         if kwargs:
             for k, v in kwargs.items():
@@ -127,12 +130,16 @@ class MapDictionary(dict):
                         v.metaName = v.nameTranslate(k)
                     else:
                         v.metaName = k
+                v.matchStr = k
                 metaStr = ''
                 if v.metaHeader:
                     metaStr = metaStr + v.metaHeader + '_'
                 if v.metaNameTag:
                     metaStr = metaStr + v.metaNameTag + '_'
-                self[metaStr + v.metaName] = v
+                metaStr = metaStr + v.metaName
+                self[metaStr] = v
+                if metaStr != k:
+                    self.pop(k, None)
 
     def __getattr__(self, attr):
         return self.get(attr)
@@ -677,10 +684,10 @@ def get_updateDictionary(self, defname):
         }
 
     singleconfcalc = { 
-        'atom_forces_type' : MetaInfoMap(startpage,
-            depends=[{'assign' : 'Amber Force Field'}],
-            lookupdict=self.mddataDict
-            ),
+        #'atom_forces_type' : MetaInfoMap(startpage,
+        #    depends=[{'assign' : 'Amber Force Field'}],
+        #    lookupdict=self.mddataDict
+        #    ),
         'energy_correction_entropy' : MetaInfoMap(startpage),
         'energy_current' : MetaInfoMap(startpage,
             depends=[{'value' : 'Etot'}],
@@ -721,63 +728,71 @@ def get_updateDictionary(self, defname):
    
     frameseq = { 
         'frame_sequence_conserved_quantity_frames' : MetaInfoMap(startpage,
-            depends=[{'value' : 'NSTEP'}],
+            depends=[{'store' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_conserved_quantity_stats' : MetaInfoMap(startpage),
         'frame_sequence_conserved_quantity' : MetaInfoMap(startpage,
-            depends=[{'value' : 'RESTRAINT'}],
+            depends=[{'store' : 'RESTRAINT'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_continuation_kind' : MetaInfoMap(startpage),
         'frame_sequence_external_url' : MetaInfoMap(startpage),
         'frame_sequence_kinetic_energy_frames' : MetaInfoMap(startpage,
-            depends=[{'value' : 'NSTEP'}],
+            depends=[{'store' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_kinetic_energy_stats' : MetaInfoMap(startpage),
         'frame_sequence_kinetic_energy' : MetaInfoMap(startpage,
-            depends=[{'value' : 'EKtot'}],
+            depends=[{'store' : 'EKtot'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_local_frames_ref' : MetaInfoMap(startpage),
         'frame_sequence_potential_energy_frames' : MetaInfoMap(startpage,
-            depends=[{'value' : 'NSTEP'}],
+            depends=[{'store' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_potential_energy_stats' : MetaInfoMap(startpage),
         'frame_sequence_potential_energy' : MetaInfoMap(startpage,
-            depends=[{'value' : 'EPtot'}],
+            depends=[{'store' : 'EPtot'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_pressure_frames' : MetaInfoMap(startpage,
-            depends=[{'value' : 'NSTEP'}],
+            depends=[{'store' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_pressure_stats' : MetaInfoMap(startpage),
         'frame_sequence_pressure' : MetaInfoMap(startpage,
-            depends=[{'value' : 'PRESS'}],
+            depends=[{'store' : 'PRESS'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_temperature_frames' : MetaInfoMap(startpage,
-            depends=[{'value' : 'NSTEP'}],
+            depends=[{'store' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_temperature_stats' : MetaInfoMap(startpage),
         'frame_sequence_temperature' : MetaInfoMap(startpage,
-            depends=[{'value' : 'TEMP'}],
+            depends=[{'store' : 'TEMP'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_time' : MetaInfoMap(startpage,
-            depends=[{'value' : 'TIME'}],
+            depends=[{'store' : 'TIME'}],
             lookupdict=self.mddataDict
             ),
-        'frame_sequence_volume' : MetaInfoMap(startpage,
-            depends=[{'value' : 'VOLUME'}],
+        'x_amber_frame_sequence_volume_frames' : MetaInfoMap(startpage,
+            depends=[{'store' : 'NSTEP'}],
             lookupdict=self.mddataDict
             ),
-        'frame_sequence_density' : MetaInfoMap(startpage,
-            depends=[{'value' : 'Density'}],
+        'x_amber_frame_sequence_volume' : MetaInfoMap(startpage,
+            depends=[{'store' : 'VOLUME'}],
+            lookupdict=self.mddataDict
+            ),
+        'x_amber_frame_sequence_density_frames' : MetaInfoMap(startpage,
+            depends=[{'store' : 'NSTEP'}],
+            lookupdict=self.mddataDict
+            ),
+        'x_amber_frame_sequence_density' : MetaInfoMap(startpage,
+            depends=[{'store' : 'Density'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_to_sampling_ref' : MetaInfoMap(startpage),
@@ -909,5 +924,24 @@ def set_includeList():
         'x_amber_mdin_wt'
         ]
     return includelist
+
+def getList_MetaStrInDict(sourceDict):
+    """Returns a list that includes all meta name 
+       strings for the given dictionary.
+       Meta name strings are not actual meta names but 
+       used as the keywords in the parsing.
+    """
+    return [sourceDict[item].matchStr for item in sourceDict]
+
+def getDict_MetaStrInDict(sourceDict):
+    """Returns a dict that includes all meta name 
+       strings and corresponding values for the given dictionary.
+       Meta name strings are not actual meta names but 
+       used as the keywords in the parsing.
+    """
+    newDict = {}
+    for item in sourceDict:
+        newDict.update({sourceDict[item].matchStr : sourceDict[item]}) 
+    return newDict
 
 
