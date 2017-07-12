@@ -7,7 +7,7 @@ import nomadcore.ActivateLogging
 from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import AncillaryParser, mainFunction, ParsingContext
 from nomadcore.simple_parser import SimpleMatcher as SM
-from AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary, getList_MetaStrInDict
+from AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary, getList_MetaStrInDict, getDict_MetaStrInDict
 import AMBERCommon as AmberC
 import trajectory_reader as TrajRead
 import logging
@@ -37,7 +37,6 @@ class AMBERParser(AmberC.AMBERParserBase):
     def __init__(self):
         # dictionary of energy values, which are tracked between SCF iterations and written after convergence
         self.totalEnergyList = {
-                                'electronic_kinetic_energy': None,
                                 'energy_electrostatic': None,
                                 'energy_total_T0_per_atom': None,
                                 'energy_free_per_atom': None,
@@ -49,8 +48,9 @@ class AMBERParser(AmberC.AMBERParserBase):
                                'x_amber_trajectory_file_detect': CachingLevel.Cache,
                                'x_amber_geometry_optimization_cdetect': CachingLevel.Cache,
                                'x_amber_mdin_finline': CachingLevel.Ignore,
+                               'x_amber_mdin_wt': CachingLevel.Ignore,
                                'x_amber_single_configuration_calculation_detect': CachingLevel.Cache,
-                               'x_amber_single_configuration_calculation': CachingLevel.Cache,
+                               #'x_amber_single_configuration_calculation': CachingLevel.Cache,
                               }
         for name in self.metaInfoEnv.infoKinds:
             metaInfo = self.metaInfoEnv.infoKinds[name]
@@ -82,9 +82,11 @@ class AMBERParser(AmberC.AMBERParserBase):
         This allows a consistent setting and resetting of the variables,
         when the parsing starts and when a section_run closes.
         """
-        self.secMethodIndex = None
-        self.secSystemDescriptionIndex = None
-        self.samplingGIndex = None
+        self.secMethodGIndex = None
+        self.secSystemGIndex = None
+        self.secSamplingGIndex = None
+        self.secSingleGIndex = None
+        self.secVDWGIndex = None
         self.inputMethodIndex = None
         self.mainMethodIndex = None
         self.mainCalcIndex = None
@@ -101,7 +103,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         # start with -1 since zeroth iteration is the initialization
         self.mdIterNr = -1
         self.singleConfCalcs = []
-        self.minConvergence = None
+        self.minConverged = None
         self.parsedLogFile = False
         self.LogSuperContext = None
         self.forces_raw = []
@@ -192,16 +194,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         #else:
         #    return False
 
-    #def compile_traj_parser(self):
-    #    """Instantiate superContext and construct parser for MD trajactory file.
-    #    """
-    #    self.trajSuperContext = AMBERmdcrdParser.AMBERmdcrdParserContext(False)
-    #    self.trajParser = AncillaryParser(
-    #        fileDescription = AMBERmdcrdParser.build_AMBERmdcrdFileSimpleMatcher(),
-    #        parser = self.parser,
-    #        cachingLevelForMetaName = AMBERmdcrdParser.get_cachingLevelForMetaName(self.metaInfoEnv, CachingLevel.Ignore),
-    #        superContext = self.trajSuperContext)
-    
     def onClose_section_run(self, backend, gIndex, section):
         """Trigger called when section_run is closed.
 
@@ -253,7 +245,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         self.metaStorage.updateBackend(backend, 
                 startsection=['section_frame_sequence'],
                 autoopenclose=False)
-        backend.addValue("frame_sequence_to_sampling_ref", self.samplingGIndex)
+        backend.addValue("frame_sequence_to_sampling_ref", self.secSamplingGIndex)
         backend.addArrayValues("frame_sequence_local_frames_ref", np.asarray(self.singleConfCalcs))
         backend.closeSection("section_frame_sequence", frameSequenceGIndex)
 
@@ -263,15 +255,6 @@ class AMBERParser(AmberC.AMBERParserBase):
 #        Detect if a MD run was performed.
 #        """
 #        self.MD = True
-
-#    def check_file_exist(self, k, v, filePath, fileList):
-#        if k.startswith('x_amber_mdin_file_') and 
-#           :
-#            
-#            file_name = os.path.normpath(os.path.join(filePath, v[-1]))
-#             = os.path.isfile(file_name)
-#            if self.topoFound:
-#                self.topoFileName = file_name
 
     def onClose_x_amber_section_input_output_files(self, backend, gIndex, section):
         """Trigger called when x_amber_section_input_output_files is closed.
@@ -304,7 +287,7 @@ class AMBERParser(AmberC.AMBERParserBase):
 
     def onOpen_section_method(self, backend, gIndex, section):
         # keep track of the latest method section
-        self.secMethodIndex = gIndex
+        self.secMethodGIndex = gIndex
         if self.inputMethodIndex is None:
             self.inputMethodIndex = gIndex
         else:
@@ -361,9 +344,32 @@ class AMBERParser(AmberC.AMBERParserBase):
                 if int(v[-1]) == 1:
                     self.MD = False
 
+    def onOpen_section_sampling_method(self, backend, gIndex, section):
+        # keep track of the latest sampling description section
+        self.secSamplingGIndex = gIndex
+
+    def onClose_section_sampling_method(self, backend, gIndex, section):
+        """Trigger called when section_sampling_method is closed.
+
+        Writes sampling method details for minimization and molecular dynamics.
+        """
+        # check control keywords were found throguh dictionary support
+        section_sampling_Dict = get_updateDictionary(self, 'sampling')
+        updateDict = {
+            'startSection' : [['section_sampling_method']],
+            #'muteSections' : [['section_system']],
+            'dictionary' : section_sampling_Dict
+            }
+        #self.secSamplingGIndex = backend.openSection("section_sampling_method")
+        self.metaStorage.update(updateDict)
+        self.metaStorage.updateBackend(backend, 
+                startsection=['section_sampling_method'],
+                autoopenclose=False)
+        #backend.closeSection("section_sampling_method", self.secSamplingGIndex)
+
     def onOpen_section_system(self, backend, gIndex, section):
         # keep track of the latest system description section
-        self.secSystemDescriptionIndex = gIndex
+        self.secSystemGIndex = gIndex
 
     def onClose_section_system(self, backend, gIndex, section):
         """Trigger called when section_system is closed.
@@ -371,18 +377,20 @@ class AMBERParser(AmberC.AMBERParserBase):
         Writes atomic positions, atom labels and lattice vectors.
         """
         # check if control keywords were found 
-        section_sampling_Dict = get_updateDictionary(self, 'sampling')
-        updateDict = {
-            'startSection' : [['section_sampling_method']],
-            #'muteSections' : [['section_system']],
-            'dictionary' : section_sampling_Dict
-            }
-        self.samplingGIndex = backend.openSection("section_sampling_method")
-        self.metaStorage.update(updateDict)
-        self.metaStorage.updateBackend(backend, 
-                startsection=['section_sampling_method'],
-                autoopenclose=False)
-        backend.closeSection("section_sampling_method", self.samplingGIndex)
+        #section_sampling_Dict = get_updateDictionary(self, 'sampling')
+        #updateDict = {
+        #    'startSection' : [['section_sampling_method']],
+        #    #'muteSections' : [['section_system']],
+        #    'dictionary' : section_sampling_Dict
+        #    }
+        #self.secSamplingGIndex = backend.openSection("section_sampling_method")
+        #self.metaStorage.update(updateDict)
+        #self.metaStorage.updateBackend(backend, 
+        #        startsection=['section_sampling_method'],
+        #        autoopenclose=False)
+        #backend.closeSection("section_sampling_method", self.secSamplingGIndex)
+        #self.secMethodGIndex = backend.openSection("section_method")
+        #backend.closeSection("section_method", self.secMethodGIndex)
 
 
         counter = 0
@@ -401,10 +409,6 @@ class AMBERParser(AmberC.AMBERParserBase):
 #                # default writeout
 #                else:
                 backend.superBackend.addValue(k, v[-1])
-            if k.startswith('x_amber_mdin_imin'):
-#                print("-----IMIN----",k,v)
-                if int(v[-1]) == 1:
-                    self.MD = False
 
         # Write atomic geometry in the case of MD 
 #        if not self.MD:
@@ -457,9 +461,10 @@ class AMBERParser(AmberC.AMBERParserBase):
 
     def onOpen_section_single_configuration_calculation(self, backend, gIndex, section):
         # write the references to section_method and section_system
-        backend.addValue('single_configuration_to_calculation_method_ref', self.secMethodIndex)
-        backend.addValue('single_configuration_calculation_to_system_ref', self.secSystemDescriptionIndex)
+        backend.addValue('single_configuration_to_calculation_method_ref', self.secMethodGIndex)
+        backend.addValue('single_configuration_calculation_to_system_ref', self.secSystemGIndex)
         self.singleConfCalcs.append(gIndex)
+        self.secSingleGIndex = backend.superBackend.openSection("section_single_configuration_calculation")
 
     def onClose_section_single_configuration_calculation(self, backend, gIndex, section):
         """Trigger called when section_single_configuration_calculation is closed.
@@ -489,46 +494,62 @@ class AMBERParser(AmberC.AMBERParserBase):
 #        if self.forces_raw:
 #            # need to transpose array since its shape is [number_of_atoms,3] in the metadata
 #            backend.addArrayValues('atom_forces_free_raw', np.transpose(np.asarray(self.forces_raw)))
-        # get reference to current section_single_configuration_calculation if trajectory was found in there
-#        if self.trajFound:
-#            self.trajRefSingleConfigurationCalculation = gIndex
-#            self.trajFound = False
         self.lastCalculationGIndex = gIndex
         exclude_list = set_excludeList(self)
         include_list = set_includeList()
         #for name in self.metaInfoEnv.infoKinds:
-        #    if name.startswith('x_fhi_aims_mdin_'):
+        #    if name.startswith('x_amber_mdin_'):
         #        exclude_list.append(name)
-        # write settings of aims output from the parsed mdin
         for k,v in section.simpleValues.items():
             if (k.startswith('x_amber_section_single_') or
                 k.startswith('x_amber_mdout_')):
-                if k in exclude_list and k not in include_list:
-                    continue
-                # default writeout
-                else:
-                    backend.superBackend.addValue(k, v[-1])
+                backend.superBackend.addValue(k, v[-1])
+#                if k in exclude_list and k not in include_list:
+#                    continue
+#                # default writeout
+#                else:
+#                    backend.superBackend.addValue(k, v[-1])
+        # get reference to current section_single_configuration_calculation if trajectory was found in there
         if self.atompositions is not None:
+            self.trajRefSingleConfigurationCalculation = gIndex
             print(self.atompositions)
             self.atompositions = self.trajectory.iread()
 
         section_frameseq_Dict = get_updateDictionary(self, 'frameseq')
-        section_singlecalc_Dict = get_updateDictionary(self, 'singleconfcalc')
-        section_frameseq_single_Dict = section_frameseq_Dict
-        section_frameseq_single_Dict.update(section_singlecalc_Dict)
-        updateDict = {
+        updateFrameDict = {
             'startSection' : [
-                ['section_single_configuration_calculation'],
                 ['section_frame_sequence']],
             'muteSections' : [['section_method']],
-            'dictionary' : section_frameseq_single_Dict
+            'dictionary' : section_frameseq_Dict
+            }
+        self.metaStorage.update(updateFrameDict)
+        section_singlevdw_Dict = get_updateDictionary(self, 'singlevdw')
+        updateDictVDW = {
+            'startSection' : [
+                ['section_energy_van_der_Waals']],
+            #'muteSections' : [['section_method']],
+            'dictionary' : section_singlevdw_Dict
+            }
+        self.secVDWGIndex = backend.superBackend.openSection("section_energy_van_der_Waals")
+        self.metaStorage.update(updateDictVDW)
+        self.metaStorage.updateBackend(backend.superBackend, 
+                startsection=['section_energy_van_der_Waals'],
+                autoopenclose=False)
+        backend.superBackend.closeSection("section_energy_van_der_Waals", self.secVDWGIndex)
+        section_singlecalc_Dict = get_updateDictionary(self, 'singleconfcalc')
+        updateDict = {
+            'startSection' : [
+                ['section_single_configuration_calculation']],
+            #'muteSections' : [['section_method']],
+            'dictionary' : section_singlecalc_Dict
             }
         self.metaStorage.update(updateDict)
-        singleGIndex = backend.openSection("section_single_configuration_calculation")
-        self.metaStorage.updateBackend(backend, 
+        #self.secSingleGIndex = backend.openSection("section_single_configuration_calculation")
+        self.metaStorage.updateBackend(backend.superBackend, 
                 startsection=['section_single_configuration_calculation'],
                 autoopenclose=False)
-        backend.closeSection("section_single_configuration_calculation", singleGIndex)
+        #backend.closeSection("section_single_configuration_calculation", self.secSingleGIndex)
+        backend.superBackend.closeSection("section_single_configuration_calculation", self.secSingleGIndex)
 
     def setStartingPointCalculation(self, parser):
         backend = parser.backend
@@ -560,8 +581,8 @@ class AMBERParser(AmberC.AMBERParserBase):
             if self.MD is not True:
                 newLine = parser.fIn.readline()
                 lastLine = ' = '.join([ "%s" % str(line) for line in zip(lastLine, newLine)])
-            for cName in matchNameList:
-                key = metaNameStart + cName.lower().replace(" ", "").replace("-", "")
+            for cName, key in getDict_MetaStrInDict(matchNameDict).items():
+                #key = metaNameStart + cName.lower().replace(" ", "").replace("-", "")
                 reDict={key:value for value in 
                         re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?:'|\")?(?P<%s>[\-+0-9.a-zA-Z:]+)(?:'|\")?\s*,?" 
                         % (cName, cName, cName, key)).findall(lastLine)}
@@ -846,6 +867,8 @@ class AMBERParser(AmberC.AMBERParserBase):
             startReStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS\s*)",
 #            endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
 #            sections=['x_amber_section_single_configuration_calculation'],
+            #sections = ['section_method','section_single_configuration_calculation'],
+            #sections=['section_single_configuration_calculation', 'section_system'],
             forwardMatch=True,
             subMatchers=[
 #                SM(startReStr=(r"\s*(?:" + 
@@ -893,10 +916,10 @@ class AMBERParser(AmberC.AMBERParserBase):
                        subFlags=SM.SubFlags.Unordered,
                        subMatchers=fileNameListGroupSubMatcher
                        ), # END SectionMethod
-                    SM(name='SectionTopology',
+                    SM(name='SectionMethod',
                        startReStr=r"\s*Here\s*is\s*the\s*input\s*file:",
                        forwardMatch=True,
-                       sections=['section_system'],
+                       sections=['section_sampling_method'],
                        subMatchers=[
                            # parse verbatim writeout of mdin file
                            mdinSubMatcher,
@@ -904,14 +927,13 @@ class AMBERParser(AmberC.AMBERParserBase):
                            parmSubMatcher,
                            # parse control settings writeout of Amber
                            mdoutSubMatcher
-                           # parse geometry writeout of Amber
-                           #geometryInSubMatcher
                        ]), # END SectionMethod
                     SM(name='SingleConfigurationCalculationWithSystemDescription',
                        startReStr=r"\s*4\.\s*RESULTS",
                        endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
                        #repeats=True,
                        forwardMatch=True,
+                       #sections=['section_single_configuration_calculation'],
                        subMatchers=[
                            # the actual section for a single configuration calculation starts here
                            SM(name='SingleConfigurationCalculation',
@@ -919,7 +941,9 @@ class AMBERParser(AmberC.AMBERParserBase):
 #                              endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
                               repeats=True,
                               forwardMatch=True,
-                              #sections=['section_method', 'section_single_configuration_calculation'],
+                              #sections=['section_system', 'section_single_configuration_calculation'],
+                              #sections = ['section_method','section_single_configuration_calculation'],
+                              #sections=['section_single_configuration_calculation', 'section_system'],
                               sections=['section_single_configuration_calculation'],
                               subMatchers=[
                                   # MD

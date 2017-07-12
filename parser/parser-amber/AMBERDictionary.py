@@ -25,6 +25,7 @@ class MetaInfoMap(dict):
     lookupdict=None
     subfunction=None
     activeSections=None
+    autoSections=False
 
     def __init__(self, *args, **kwargs):
         super(MetaInfoMap, self).__init__(*args, **kwargs)
@@ -163,6 +164,10 @@ class MapDictionary(dict):
 
 def metaNameConverter(keyName):
     newName = keyName.lower().replace(" ", "").replace("-", "")
+    newName = newName.replace("(", "").replace(")", "")
+    newName = newName.replace("[", "").replace("]", "")
+    newName = newName.replace(",", "").replace(".", "")
+    newName = newName.replace("\\", "").replace("/", "")
     return newName
 
 def get_fileListDict():
@@ -340,9 +345,9 @@ def get_nameListDict(deflist):
         'ew_type' : MetaInfoMap(startpage, defaultValue=0),
         'dsum_tol' : MetaInfoMap(startpage, defaultValue=1.0E-5),
         'rsum_tol' : MetaInfoMap(startpage, defaultValue=5.0E-5),
-        'mlimit(1)' : MetaInfoMap(startpage),
-        'mlimit(2)' : MetaInfoMap(startpage),
-        'mlimit(3)' : MetaInfoMap(startpage),
+        'mlimit\(1\)' : MetaInfoMap(startpage),
+        'mlimit\(2\)' : MetaInfoMap(startpage),
+        'mlimit\(3\)' : MetaInfoMap(startpage),
         'ew_coeff' : MetaInfoMap(startpage),
         'nbflag' : MetaInfoMap(startpage, defaultValue=1),
         'skinnb' : MetaInfoMap(startpage, defaultValue=2.0),
@@ -514,8 +519,8 @@ def get_nameListDict(deflist):
         })
     mddatalist = {
         'NSTEP' : MetaInfoMap(startpage),
-        'TIME' : MetaInfoMap(startpage),
-        'TEMP' : MetaInfoMap(startpage),
+        'TIME\(PS\)' : MetaInfoMap(startpage),
+        'TEMP\(K\)' : MetaInfoMap(startpage),
         'PRESS' : MetaInfoMap(startpage),
         'Etot' : MetaInfoMap(startpage),
         'EKtot' : MetaInfoMap(startpage),
@@ -653,6 +658,27 @@ def get_updateDictionary(self, defname):
                  'assign' : 'Monte Carlo barostat'} 
                 ],
             lookupdict=self.cntrlDict,
+            #autoSections=True,
+            activeSections=['settings_barostat']
+            ),
+        'x_amber_barostat_target_pressure' : MetaInfoMap(startpage,
+            depends=[
+                {'test' : [['imin', '== 0'], 
+                           ['ntp', '!= 0']], 
+                 'value' : 'pres0'} 
+                ],
+            lookupdict=self.cntrlDict,
+            #autoSections=True,
+            activeSections=['settings_barostat']
+            ),
+        'x_amber_barostat_tau' : MetaInfoMap(startpage,
+            depends=[
+                {'test' : [['imin', '== 0'], 
+                           ['ntp', '!= 0']], 
+                 'value' : 'taup'} 
+                ],
+            lookupdict=self.cntrlDict,
+            #autoSections=True,
             activeSections=['settings_barostat']
             ),
         'x_amber_integrator_type' : MetaInfoMap(startpage,
@@ -663,6 +689,22 @@ def get_updateDictionary(self, defname):
                  'assign' : 'minimization'}
                 ],
             lookupdict=self.cntrlDict,
+            #autoSections=True,
+            activeSections=['settings_integrator']
+            ),
+        'x_amber_integrator_dt' : MetaInfoMap(startpage,
+            depends=[
+                {'test' : [['imin', '== 0']],
+                 'value' : 'dt'}
+                ],
+            lookupdict=self.cntrlDict,
+            #autoSections=True,
+            activeSections=['settings_integrator']
+            ),
+        'x_amber_number_of_steps_requested' : MetaInfoMap(startpage,
+            depends=[{'value' : 'nstlim'}],
+            lookupdict=self.cntrlDict,
+            #autoSections=True,
             activeSections=['settings_integrator']
             ),
         'x_amber_thermostat_type' : MetaInfoMap(startpage,
@@ -679,8 +721,53 @@ def get_updateDictionary(self, defname):
                  'assign' : 'RESPA Stochastic Isokinetic Nose-Hoover'} 
                 ],
             lookupdict=self.cntrlDict,
+            #autoSections=True,
             activeSections=['settings_thermostat']
             ),
+        'x_amber_thermostat_target_temperature' : MetaInfoMap(startpage,
+            depends=[
+                {'test' : [['imin', '== 0'], ['ntt', '> 0']],
+                 'value' : 'temp0'}
+                ],
+            lookupdict=self.cntrlDict,
+            #autoSections=True,
+            activeSections=['settings_thermostat']
+            ),
+        'x_amber_thermostat_tau' : MetaInfoMap(startpage,
+            depends=[
+                {'test' : [['imin', '== 0'], ['ntt', '== 1']],
+                 'value' : 'tautp'}, 
+                {'test' : [['imin', '== 0'], ['ntt', '== 2']],
+                 'value' : 'tautp'}, 
+                {'test' : [['imin', '== 0'], ['ntt', '== 9']],
+                 'value' : 'gamma_ln'}, 
+                {'test' : [['imin', '== 0'], ['ntt', '== 10']],
+                 'value' : 'gamma_ln'}, 
+                ],
+            lookupdict=self.cntrlDict,
+            #autoSections=True,
+            activeSections=['settings_thermostat']
+            ),
+        'x_amber_langevin_gamma' : MetaInfoMap(startpage,
+            depends=[
+                {'test' : [['imin', '== 0'], ['ntt', '== 3']],
+                 'value' : 'gamma_ln'}
+                ],
+            lookupdict=self.cntrlDict,
+            #autoSections=True,
+            activeSections=['settings_thermostat']
+            ),
+        'x_amber_periodicity_type' : MetaInfoMap(startpage,
+            depends=[
+                {'test' : [['ntb', '== 0']],
+                 'assign' : 'no periodic boundaries'},
+                {'test' : [['ntb', '> 0']],
+                 'assign' : 'periodic boundaries'}
+                ],
+            lookupdict=self.cntrlDict,
+            #autoSections=True,
+            activeSections=['settings_thermostat']
+            )
         }
 
     singleconfcalc = { 
@@ -689,10 +776,11 @@ def get_updateDictionary(self, defname):
         #    lookupdict=self.mddataDict
         #    ),
         'energy_correction_entropy' : MetaInfoMap(startpage),
-        'energy_current' : MetaInfoMap(startpage,
-            depends=[{'value' : 'Etot'}],
-            lookupdict=self.mddataDict
-            ),
+        #'energy_current' : MetaInfoMap(startpage,
+        #    depends=[{'value' : 'EPtot'}],
+        #    lookupdict=self.mddataDict
+        #    ),
+        'energy_current' : MetaInfoMap(startpage),
         'energy_electrostatic' : MetaInfoMap(startpage,
             depends=[{'value' : 'EELEC'}],
             lookupdict=self.mddataDict
@@ -700,7 +788,7 @@ def get_updateDictionary(self, defname):
         'energy_free_per_atom' : MetaInfoMap(startpage),
         'energy_free' : MetaInfoMap(startpage),
         'energy_method_current' : MetaInfoMap(startpage,
-            depends=[{'assign' : 'Amber Force Field'}],
+            depends=[{'assign' : 'Force Field'}],
             lookupdict=self.mddataDict
             ),
         'energy_T0_per_atom' : MetaInfoMap(startpage),
@@ -710,7 +798,6 @@ def get_updateDictionary(self, defname):
             depends=[{'value' : 'Etot'}],
             lookupdict=self.mddataDict
             ),
-        'energy_type_van_der_Waals' : MetaInfoMap(startpage),
         'hessian_matrix' : MetaInfoMap(startpage),
         'single_configuration_calculation_converged' : MetaInfoMap(startpage),
         'single_configuration_calculation_to_system_ref' : MetaInfoMap(startpage),
@@ -724,6 +811,15 @@ def get_updateDictionary(self, defname):
         'time_single_configuration_calculation_wall_start' : MetaInfoMap(startpage),
         'stress_tensor_kind' : MetaInfoMap(startpage),
         'stress_tensor_value' : MetaInfoMap(startpage)
+        }
+
+    singlevdw = {
+        'energy_van_der_Waals_value' : MetaInfoMap(startpage,
+            depends=[{'value' : 'VDWAALS'}],
+            lookupdict=self.mddataDict,
+            #autoSections=True,
+            activeSections=['section_energy_van_der_Waals']
+            ),
         }
    
     frameseq = { 
@@ -772,11 +868,11 @@ def get_updateDictionary(self, defname):
             ),
         'frame_sequence_temperature_stats' : MetaInfoMap(startpage),
         'frame_sequence_temperature' : MetaInfoMap(startpage,
-            depends=[{'store' : 'TEMP'}],
+            depends=[{'store' : 'TEMP\(K\)'}],
             lookupdict=self.mddataDict
             ),
         'frame_sequence_time' : MetaInfoMap(startpage,
-            depends=[{'store' : 'TIME'}],
+            depends=[{'store' : 'TIME\(PS\)'}],
             lookupdict=self.mddataDict
             ),
         'x_amber_frame_sequence_volume_frames' : MetaInfoMap(startpage,
@@ -796,13 +892,51 @@ def get_updateDictionary(self, defname):
             lookupdict=self.mddataDict
             ),
         'frame_sequence_to_sampling_ref' : MetaInfoMap(startpage),
-        'geometry_optimization_converged' : MetaInfoMap(startpage),
-        'number_of_conserved_quantity_evaluations_in_sequence' : MetaInfoMap(startpage),
-        'number_of_frames_in_sequence' : MetaInfoMap(startpage),
-        'number_of_kinetic_energies_in_sequence' : MetaInfoMap(startpage),
-        'number_of_potential_energies_in_sequence' : MetaInfoMap(startpage),
-        'number_of_pressure_evaluations_in_sequence' : MetaInfoMap(startpage),
-        'number_of_temperatures_in_sequence' : MetaInfoMap(startpage),
+        'geometry_optimization_converged' : MetaInfoMap(startpage,
+            value=self.minConverged
+            ),
+        'number_of_conserved_quantity_evaluations_in_sequence' : MetaInfoMap(startpage,
+            value=len([
+                item for item in self.metaStorage.fetchAttr(
+                    {'frame_sequence_conserved_quantity_frames' : None}
+                    )['frame_sequence_conserved_quantity_frames']
+                ])
+            ),
+        'number_of_frames_in_sequence' : MetaInfoMap(startpage,
+            value=len([
+                item for item in self.metaStorage.fetchAttr(
+                    {'frame_sequence_potential_energy_frames' : None}
+                    )['frame_sequence_potential_energy_frames']
+                ])
+            ),
+        'number_of_kinetic_energies_in_sequence' : MetaInfoMap(startpage,
+            value=len([
+                item for item in self.metaStorage.fetchAttr(
+                    {'frame_sequence_kinetic_energy_frames' : None}
+                    )['frame_sequence_kinetic_energy_frames']
+                ])
+            ),
+        'number_of_potential_energies_in_sequence' : MetaInfoMap(startpage,
+            value=len([
+                item for item in self.metaStorage.fetchAttr(
+                    {'frame_sequence_potential_energy_frames' : None}
+                    )['frame_sequence_potential_energy_frames']
+                ])
+            ),
+        'number_of_pressure_evaluations_in_sequence' : MetaInfoMap(startpage,
+            value=len([
+                item for item in self.metaStorage.fetchAttr(
+                    {'frame_sequence_pressure_frames' : None}
+                    )['frame_sequence_pressure_frames']
+                ])
+            ),
+        'number_of_temperatures_in_sequence' : MetaInfoMap(startpage,
+            value=len([
+                item for item in self.metaStorage.fetchAttr(
+                    {'frame_sequence_temperature_frames' : None}
+                    )['frame_sequence_temperature_frames']
+                ])
+            ),
         'previous_sequence_ref' : MetaInfoMap(startpage)
         }
 
@@ -893,6 +1027,8 @@ def get_updateDictionary(self, defname):
         dictionary = interaction
     elif defname == 'sampling':
         dictionary = sampling
+    elif defname == 'singlevdw':
+        dictionary = singlevdw
     else:
         dictionary = singleconfcalclist
     return MapDictionary(dictionary)
@@ -907,6 +1043,7 @@ def set_excludeList(self):
         'x_amber_mdin_verbatim_writeout',
         'x_amber_dumm_text',
         'x_amber_dummy',
+        'x_amber_mdin_wt'
         ]
     excludelist.extend(['x_amber_mdin_file_%s' % fileNL.lower() for fileNL in self.fileDict.keys()])
     excludelist.extend(['x_amber_mdin_%s' % cntrlNL.lower() for cntrlNL in self.cntrlDict.keys()])
@@ -920,9 +1057,7 @@ def set_includeList():
     Returns:
         the list of names
     """
-    includelist = [
-        'x_amber_mdin_wt'
-        ]
+    includelist = []
     return includelist
 
 def getList_MetaStrInDict(sourceDict):
@@ -940,8 +1075,8 @@ def getDict_MetaStrInDict(sourceDict):
        used as the keywords in the parsing.
     """
     newDict = {}
-    for item in sourceDict:
-        newDict.update({sourceDict[item].matchStr : sourceDict[item]}) 
+    for key, value in sourceDict.items():
+        newDict.update({sourceDict[key].matchStr : key}) 
     return newDict
 
 

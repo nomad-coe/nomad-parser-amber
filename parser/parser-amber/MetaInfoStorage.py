@@ -196,14 +196,25 @@ class Container(object):
         #
         # Check whether depends is supplied in the item.
         updateValue = None
+        storeValue = False
+        if "prefunction" in item:
+            storeValue, updateValue, item = item.prefunction(item)
         if "depends" in item:
+            firstdepend = item["depends"][0]
             if "lookupdict" in item:
-                if "test" in item["depends"][0]:
+                needFetchVal = False
+                if "test" in firstdepend:
                     updateValue, localdict = self.checkTestsDicts(item, localdict)
-                elif "assign" in item["depends"][0]:
-                    updateValue = item["depends"][0]["assign"]
-                elif "value" in item["depends"][0]:
-                    itemdepval = item["depends"][0]["value"]
+                elif "assign" in firstdepend:
+                    updateValue = firstdepend["assign"]
+                elif "value" in firstdepend:
+                    itemdepval = firstdepend["value"]
+                    needFetchVal = True
+                elif "store" in firstdepend:
+                    itemdepval = firstdepend["store"]
+                    needFetchVal = True
+                    storeValue = True
+                if needFetchVal:
                     if itemdepval in localdict:
                         checkval = localdict[itemdepval]
                     else:
@@ -211,12 +222,19 @@ class Container(object):
                         localdict.update({itemdepval : checkval})
                     updateValue = checkval
             else:
-                if "test" in item["depends"][0]:
+                needFetchVal = False
+                if "test" in firstdepend:
                     updateValue, localdict = self.checkTestsAttr(item, localdict)
-                elif "assign" in item["depends"][0]:
-                    updateValue = item["depends"][0]["assign"]
-                elif "value" in item["depends"][0]:
-                    itemdepval = item["depends"][0]["value"]
+                elif "assign" in firstdepend:
+                    updateValue = firstdepend["assign"]
+                elif "value" in firstdepend:
+                    itemdepval = firstdepend["value"]
+                    needFetchVal = True
+                elif "store" in firstdepend:
+                    itemdepval = firstdepend["store"]
+                    needFetchVal = True
+                    storeValue = True
+                if needFetchVal:
                     if itemdepval in localdict:
                         checkval = localdict[itemdepval]
                     else:
@@ -226,10 +244,12 @@ class Container(object):
                         checkval = attrdict[deptest[0]]
                     updateValue = checkval
         elif "subfunction" in item:
-            updateValue = item.subfunction(item)
+            storeValue, updateValue, item = item.subfunction(item)
         elif "value" in item:
             updateValue = item['value']
-        return updateValue, localdict
+        if "postfunction" in item:
+            storeValue, updateValue, item = item.postfunction(item)
+        return storeValue, updateValue, localdict
 
     def checkTestsDicts(self, item, localdict):
         for depdict in item["depends"]:
@@ -308,10 +328,25 @@ class Container(object):
         localdict = {}
         for itemk in checkDict:
             itemv = checkDict[itemk]
-            updateValue, localdict = self.checkUpdateValue(itemv, localdict)
+            storeValue, updateValue, localdict = self.checkUpdateValue(itemv, localdict)
             if updateValue:
                 if itemk in self.Storage.__dict__:
-                    self.Storage.__dict__[itemk]["val"] = updateValue
+                    if storeValue:
+                        #If we need to store the updated values
+                        if self.Storage.__dict__[itemk]["val"] is None:
+                            #If not initialized, initialize with a list to store
+                            self.Storage.__dict__[itemk]["val"] = [updateValue]
+                        else:
+                            #Append to the stored list if there is a list
+                            if type(self.Storage.__dict__[itemk]["val"]) is list:
+                                self.Storage.__dict__[itemk]["val"].append(updateValue)
+                            else:
+                                #Convert the prevoius update to list and append update
+                                preValue = self.Storage.__dict__[itemk]["val"]
+                                self.Storage.__dict__[itemk]["val"] = [preValue, updateValue]
+                    else:
+                        #No need to store, assign the updated value
+                        self.Storage.__dict__[itemk]["val"] = updateValue
                     self.Storage.__dict__[itemk]["act"] = True
                 elif (itemk.startswith('x_') and 
                       itemv.activeSection == self.Name):
