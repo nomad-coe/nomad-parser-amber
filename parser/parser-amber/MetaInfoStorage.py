@@ -198,7 +198,7 @@ class Container(object):
         updateValue = None
         storeValue = False
         if "prefunction" in item:
-            storeValue, updateValue, item = item.prefunction(item)
+            storeValue, updateValue, item = item.functionbase.eval(item.prefunction % item)
         if "depends" in item:
             firstdepend = item["depends"][0]
             if "lookupdict" in item:
@@ -244,11 +244,18 @@ class Container(object):
                         checkval = attrdict[deptest[0]]
                     updateValue = checkval
         elif "subfunction" in item:
-            storeValue, updateValue, item = item.subfunction(item)
+            subfunc = item.subfunction
+            storeValue, updateValue, item = subfunc(item)
+            #subfunc = item.functionbase
+            #storeValue, updateValue, item = eval(item.subfunction % item, 
+            #        globals(), 
+            #        #subfunc.__class__().__dict__
+            #        {k: getattr(subfunc.__class__(), k) for k in dir(subfunc.__class__())}
+            #        )
         elif "value" in item:
             updateValue = item['value']
         if "postfunction" in item:
-            storeValue, updateValue, item = item.postfunction(item)
+            storeValue, updateValue, item = item.functionbase.eval(item.postfunction % item)
         return storeValue, updateValue, localdict
 
     def checkTestsDicts(self, item, localdict):
@@ -261,8 +268,13 @@ class Container(object):
                 else:
                     accessName, checkval = self.findNameInLookupDict(deptest[0], item.lookupdict)
                     localdict.update({deptest[0] : checkval})
-                if eval(str(checkval) + deptest[1]):
-                    depmeet += 1
+                if(('<' in deptest[1] or   # In Python 3, different type comparisons
+                    '>' in deptest[1]) and # are removed. Therefore, < and > comparisons
+                    (checkval is None)):   # with a None value generates TypeError
+                    pass
+                else:
+                    if eval(str(checkval) + deptest[1]):
+                        depmeet += 1
                 if depmeet == len(deptests):
                     if 'assign' in depdict:
                         return depdict['assign'], localdict
@@ -329,7 +341,7 @@ class Container(object):
         for itemk in checkDict:
             itemv = checkDict[itemk]
             storeValue, updateValue, localdict = self.checkUpdateValue(itemv, localdict)
-            if updateValue:
+            if updateValue is not None:
                 if itemk in self.Storage.__dict__:
                     if storeValue:
                         #If we need to store the updated values

@@ -5,9 +5,10 @@ import setup_paths
 import numpy as np
 import nomadcore.ActivateLogging
 from nomadcore.caching_backend import CachingLevel
-from nomadcore.simple_parser import AncillaryParser, mainFunction, ParsingContext
+from nomadcore.simple_parser import mainFunction, ParsingContext
 from nomadcore.simple_parser import SimpleMatcher as SM
 from AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary, getList_MetaStrInDict, getDict_MetaStrInDict
+from contextlib import contextmanager
 import AMBERCommon as AmberC
 import trajectory_reader as TrajRead
 import logging
@@ -23,6 +24,12 @@ import sys
 LOGGER = logging.getLogger("nomad.AMBERParser")
       
 #PRINTABLE = re.compile(r"\W+")
+
+@contextmanager
+def open_section(parser, name):
+    gid = parser.openSection(name)
+    yield gid
+    parser.closeSection(name, gid)
 
 class AMBERParser(AmberC.AMBERParserBase):
     """Context for parsing AMBER main file.
@@ -84,13 +91,18 @@ class AMBERParser(AmberC.AMBERParserBase):
         """
         self.secMethodGIndex = None
         self.secSystemGIndex = None
+        self.secTopologyGIndex = None
         self.secSamplingGIndex = None
         self.secSingleGIndex = None
         self.secVDWGIndex = None
+        self.secAtomType = None
         self.inputMethodIndex = None
         self.mainMethodIndex = None
         self.mainCalcIndex = None
         self.MD = True
+        self.topologyDict = None
+        self.topologyTable = None
+        self.topologyBonds = None
         self.topology = None
         self.topologyFormat = None
         self.topologyFile = None
@@ -111,6 +123,8 @@ class AMBERParser(AmberC.AMBERParserBase):
         self.logFileName = None
         self.lastfInLine = None
         self.lastfInMatcher = None
+        self.secOpen = open_section
+        self.superP = self.parser.backend.superBackend
 
     def startedParsing(self, fInName, parser):
         """Function is called when the parsing starts.
@@ -172,6 +186,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                     traj_loaded = self.trajectory.load()
                     self.atompositions = self.trajectory.iread()
                     if self.atompositions is not None:
+                        self.topology = self.trajectory.get_topology()
                         return fileFormat
 
     def initializeFileHandlers(self):
@@ -186,13 +201,174 @@ class AMBERParser(AmberC.AMBERParserBase):
                 topoformat = self.topologyFileHandler(fileItem)
                 # Second check trajectory file
                 trajformat = self.trajectoryFileHandler(fileItem, topoformat)
-        print(self.atompositions)
+        if self.topology:
+            self.topologyTable, self.topologyBonds = self.topology.to_dataframe()
+            self.topologyDict = self.topologyTable.to_dict(orient='list')
+        #print(self.atompositions)
         self.topologyFormat = topoformat
         self.trajectoryFormat = trajformat
         #if trajformat or topoformat:
         #    return True
         #else:
         #    return False
+
+    def topology_to_dictionary(self):
+        """ This function generates self.topologyDict dictionary
+            and converts/stores all the topology information 
+            according to the meta info definitions
+        """
+        newDict = {}
+        return newDict
+
+    def topology_num_topo_mol(self, itemdict):
+        """ Function to generate data for number_of_topology_molecules
+        """
+        if self.topology:
+            residueList = self.topologyDict["resSeq"]
+            return False, residueList[len(residueList)-1], itemdict
+        else:
+            return False, None, itemdict
+
+    def topology_system_name(self, itemdict):
+        """ Function to generate data for atom_to_molecule 
+        """
+        system_name = self.fName.split('.')[-1]
+        if self.topology:
+            residueList = ','.join(list(set(self.topologyDict["resName"])))
+        return False, system_name, itemdict
+
+    def topology_atom_to_mol(self, itemdict):
+        """ Function to generate data for atom_to_molecule 
+        """
+        if self.topology:
+            residueList = self.topologyDict["resSeq"]
+            atomIndex = np.arange(len(residueList))
+            atom_to_residue = np.zeros((len(residueList), 2), dtype=int)
+            atom_to_residue[:,0] = atomIndex
+            atom_to_residue[:,1] = residueList
+            return False, atom_to_residue, itemdict
+        else:
+            return False, None, itemdict
+
+    def topology_atom_type_and_interactions(self):
+        """ Function to generate data for atom_to_molecule 
+        """
+        if self.topology:
+            atom_type_list=list(set(self.topologyDict["name"]))
+            atom_type_dict = {}
+            massesDict = {}
+            elementDict = {}
+            radiusDict = {}
+            for ielm in range(len(atom_type_list)):
+                elm = atom_type_list[ielm]
+                atom_type_dict.update({elm : ielm})
+                for atom in self.topology.atoms:
+                    if elm == atom.name:
+                        massesDict.update({atom.name : atom.element.mass})
+                        elementDict.update({atom.name : atom.element.symbol})
+                        radiusDict.update({atom.name : atom.element.radius})
+
+            massesList = list(massesDict.values())
+            elementList = list(elementDict.values())
+            radiusList = list(radiusDict.values())
+
+            interDict = {}
+            interTypeDict = {}
+            for ielm in range(len(atom_type_list)):
+                elm = atom_type_list[ielm]
+                bondList = []
+                typeList = []
+                bondid = 0
+                for bond in self.topology.bonds:
+                    molname1, molatom1 = str(bond[0]).split('-')
+                    molname2, molatom2 = str(bond[1]).split('-')
+                    if (elm == str(molatom1) or elm == str(molatom2)):
+                        bondList.append(list(self.topologyBonds[bondid]))
+                        typeList.append(list([
+                            atom_type_dict[str(molatom1)],
+                            atom_type_dict[str(molatom2)]
+                            ]))
+                            #str(molatom1)+':'+str(ielm+1), 
+                            #str(molatom2)+':'+str(ielm+1)
+                            #]))
+                        interDict.update({elm : bondList})
+                        interTypeDict.update({elm : typeList})
+                    bondid += 1
+
+            for elm in range(len(atom_type_list)):
+                with self.secOpen(self.superP, 'section_atom_type'):
+                    ### !!! ----------------------------------------------- !!!
+                    ### !!! Need to check the definition of atom type name. 
+                    ### !!! Which one is better? C1, CA, C:1 or C !!!
+                    ### !!! ----------------------------------------------- !!!
+                    # Atom name? Atom element?
+                    self.superP.addValue('atom_type_name', str(atom_type_list[elm]) + ':' + str(elm+1))    
+                    # Atomic mass
+                    self.superP.addValue('atom_type_mass', massesList[elm])             
+                    # Atomic element/symbol
+                    self.superP.addValue('x_amber_atom_type_element', elementList[elm]) 
+                    # Atomic van der Waals radius
+                    self.superP.addValue('x_amber_atom_type_radius', radiusList[elm])   
+                    # Atomic charge
+                    #self.superP.addValue('atom_type_charge', atom_charge)              
+                    pass
+
+            for elm in atom_type_list:
+                with self.secOpen(self.superP, 'section_interaction'):
+                    # atom indexes of bound pairs for a specific atom type
+                    self.superP.addArrayValues('interaction_atoms', np.asarray(interDict[elm]))     
+                    # number of bonds for this type
+                    self.superP.addValue('number_of_interactions', len(interDict[elm]))             
+                    # number of atoms involved (2 for covalent bonds)
+                    self.superP.addValue('number_of_atoms_per_interaction', len(interDict[elm][0])) 
+                
+                    #if bondFunctional:
+                    #    self.superP.addValue('interaction_kind', bondFunctional)  # functional form of the interaction
+
+                    # this points to the relative section_atom_type
+                    self.superP.addArrayValues('x_lammps_interaction_atom_to_atom_type_ref', 
+                            np.asarray(interTypeDict[elm]))  
+                    # interaction parameters for the functional
+                    #self.superP.addValue('interaction_parameters', bondParameters)  
+
+
+#            for i in range(len(moleculeTypeInfo)):
+#
+#                with o(p, 'section_molecule_type'):
+#                    # gindex = 0
+#                    p.addValue('molecule_type_name', 'molecule'+'_'+str(moleculeTypeInfo[i][0]))
+#                    p.addValue('number_of_atoms_in_molecule', len(moleculeTypeInfo[i][1]))
+#
+#                    p.addArrayValues('atom_in_molecule_to_atom_type_ref', np.asarray([x-1 for x in moleculeTypeInfo[i][1]]))
+#
+#
+#            residueList = self.topologyDict["resSeq"]
+#            atomIndex = np.arange(len(residueList))
+#            atom_to_residue = np.zeros((len(residueList), 2), dtype=int)
+#            atom_to_residue[:,0] = atomIndex
+#            atom_to_residue[:,1] = residueList
+#            return atom_to_residue
+#        else:
+#            return None
+
+#    mol_to_mol_bond = []
+#    mol_to_mol_bond_num = []
+#    atom_in_mol_bond = []
+#    atom_in_mol_bond_num = []
+#    index=0
+#    print(len([res for res in mytopology.bonds]))
+#    for res in mytopology.bonds:
+#        molname1, molatom1 = str(res[0]).split('-')
+#        molname2, molatom2 = str(res[1]).split('-')
+#        if molname1 in molname2: 
+#            atom_in_mol_bond.append(res)
+#            atom_in_mol_bond_num.append(bonds[index])
+#        else:
+#            mol_to_mol_bond.append(res)
+#            mol_to_mol_bond_num.append(bonds[index])
+#        index += 1
+#    print(mol_to_mol_bond)
+#    print(np.array(mol_to_mol_bond_num))
 
     def onClose_section_run(self, backend, gIndex, section):
         """Trigger called when section_run is closed.
@@ -219,15 +395,6 @@ class AMBERParser(AmberC.AMBERParserBase):
                 backend.superBackend.addValue(k, v[-1])
         # reset all variables
         self.initialize_values()
-#        for k,v in section.simpleValues.items():
-#            if k == 'x_amber_mdin_file_mdin':
-#                print('RUN  YES',v)
-        if section['x_amber_mdin_imin'] is not None:
-#            print('YEEEEEEEEEESSSSSS',section['x_amber_mdin_imin'])
-            if section['x_amber_mdin_imin'][-1] == '1':
-                self.MD = True 
-#            else:
-#                self.MD = False
 #        if self.MD:
 
 #       sampling_method = "molecular_dynamics"
@@ -248,13 +415,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         backend.addValue("frame_sequence_to_sampling_ref", self.secSamplingGIndex)
         backend.addArrayValues("frame_sequence_local_frames_ref", np.asarray(self.singleConfCalcs))
         backend.closeSection("section_frame_sequence", frameSequenceGIndex)
-
-#    def onClose_x_amber_section_MD_detect(self, backend, gIndex, section):
-#        """Trigger called when fhi_aims_section_MD_detect is closed.
-#
-#        Detect if a MD run was performed.
-#        """
-#        self.MD = True
 
     def onClose_x_amber_section_input_output_files(self, backend, gIndex, section):
         """Trigger called when x_amber_section_input_output_files is closed.
@@ -302,47 +462,8 @@ class AMBERParser(AmberC.AMBERParserBase):
         """Trigger called when section_method is closed.
         """
         # input method
-        if gIndex == self.inputMethodIndex:
-            self.closingInputMethodSection(backend, gIndex, section)
-#        for k,v in section.simpleValues.items():
-#            if (k.startswith('x_amber_mdin_') or 
-#                k.startswith('x_amber_mdout_') or
-#                k.startswith('x_amber_parm_')):
-#                backend.superBackend.addValue(k, v[-1])
-
-    def closingInputMethodSection(self, backend, gIndex, section):
-        """Called when section_method that should contain the main input is closed.
-
-        Write the keywords from AMBER output from the parsed mdin, which belong to section_method.
-
-        ATTENTION
-        backend.superBackend is used here instead of only the backend to write the JSON values,
-        since this allows to bybass the caching setting which was used to collect the values for processing.
-        However, this also bypasses the checking of validity of the metadata name by the backend.
-        The scala part will check the validity nevertheless.
-        """
-        # check if control keywords were found or verbatim_writeout is false
-        #verbatim_writeout = True
-        counter = 0
-        exclude_list = set_excludeList(self)
-        include_list = set_includeList()
-        #for name in self.metaInfoEnv.infoKinds:
-        #    if name.startswith('x_fhi_aims_mdin_'):
-        #        exclude_list.append(name)
-        # write settings of aims output from the parsed mdin
-        for k,v in section.simpleValues.items():
-            if (k.startswith('x_amber_mdin_') or 
-#                k.startswith('x_amber_mdout_') or
-                k.startswith('x_amber_parm_')):
-#                if k in exclude_list and k not in include_list:
-#                    continue
-#                # default writeout
-#                else:
-                backend.superBackend.addValue(k, v[-1])
-            if k.startswith('x_amber_mdin_imin'):
-#                print("-----IMIN----",k,v)
-                if int(v[-1]) == 1:
-                    self.MD = False
+        #if gIndex == self.inputMethodIndex:
+        pass
 
     def onOpen_section_sampling_method(self, backend, gIndex, section):
         # keep track of the latest sampling description section
@@ -366,75 +487,78 @@ class AMBERParser(AmberC.AMBERParserBase):
                 startsection=['section_sampling_method'],
                 autoopenclose=False)
         #backend.closeSection("section_sampling_method", self.secSamplingGIndex)
+    
+    def onOpen_section_topology(self, backend, gIndex, section):
+        # keep track of the latest topology description section
+        if (gIndex is None or gIndex == -1 or gIndex == "-1"):
+            self.secTopologyGIndex = backend.superBackend.openSection("section_topology")
+        else:
+            self.secTopologyGIndex = gIndex
+
+    def onClose_section_topology(self, backend, gIndex, section):
+        """Trigger called when section_topology is closed.
+        """
+        section_topology_Dict = get_updateDictionary(self, 'topology')
+        updateDict = {
+            'startSection' : [
+                ['section_topology']],
+            #'muteSections' : [['section_method']],
+            'dictionary' : section_topology_Dict
+            }
+        self.metaStorage.update(updateDict)
+        self.metaStorage.updateBackend(backend.superBackend, 
+                startsection=['section_topology'],
+                autoopenclose=False)
+        self.topology_atom_type_and_interactions()
+
+        if (gIndex is None or gIndex == -1 or gIndex == "-1"):
+            backend.superBackend.closeSection("section_topology", self.secTopologyGIndex)
 
     def onOpen_section_system(self, backend, gIndex, section):
         # keep track of the latest system description section
-        self.secSystemGIndex = gIndex
+        if (gIndex is None or gIndex == -1 or gIndex == "-1"):
+            self.secSystemGIndex = backend.superBackend.openSection("section_system")
+        else:
+            self.secSystemGIndex = gIndex
 
     def onClose_section_system(self, backend, gIndex, section):
         """Trigger called when section_system is closed.
 
         Writes atomic positions, atom labels and lattice vectors.
         """
-        # check if control keywords were found 
-        #section_sampling_Dict = get_updateDictionary(self, 'sampling')
-        #updateDict = {
-        #    'startSection' : [['section_sampling_method']],
-        #    #'muteSections' : [['section_system']],
-        #    'dictionary' : section_sampling_Dict
-        #    }
-        #self.secSamplingGIndex = backend.openSection("section_sampling_method")
-        #self.metaStorage.update(updateDict)
-        #self.metaStorage.updateBackend(backend, 
-        #        startsection=['section_sampling_method'],
-        #        autoopenclose=False)
-        #backend.closeSection("section_sampling_method", self.secSamplingGIndex)
-        #self.secMethodGIndex = backend.openSection("section_method")
-        #backend.closeSection("section_method", self.secMethodGIndex)
+        # Our special recipe for the confused backend and more
+        # See our other recipes at the back of this parser: MetaInfoStorage! :)
+        if (gIndex is None or gIndex == -1 or gIndex == "-1"):
+            SloppyBackend = backend.superBackend
+        else:
+            SloppyBackend = backend
 
+        if self.topology:
+            if (self.secTopologyGIndex is None or
+                (self.secTopologyGIndex == -1 or 
+                self.secTopologyGIndex == "-1")):
+                self.onOpen_section_topology(backend, None, None)
+                self.onClose_section_topology(backend, None, None)
+            SloppyBackend.addValue("topology_ref", self.secTopologyGIndex)
 
-        counter = 0
-        exclude_list = set_excludeList(self)
-        include_list = set_includeList()
-        #for name in self.metaInfoEnv.infoKinds:
-        #    if name.startswith('x_fhi_aims_mdin_'):
-        #        exclude_list.append(name)
-        # write settings of aims output from the parsed mdin
-        for k,v in section.simpleValues.items():
-            if (k.startswith('x_amber_mdin_') or 
-#                k.startswith('x_amber_mdout_') or
-                k.startswith('x_amber_parm_')):
-#                if k in exclude_list and k not in include_list:
-#                    continue
-#                # default writeout
-#                else:
-                backend.superBackend.addValue(k, v[-1])
+        if self.atompositions is not None:
+            self.trajRefSingleConfigurationCalculation = gIndex
+            SloppyBackend.addArrayValues('atom_positions', np.transpose(np.asarray(self.atompositions[0])))
+            if self.topology is not None:
+                #SloppyBackend.addArrayValues('atom_labels', np.asarray(atom_labels))
+                pass
 
-        # Write atomic geometry in the case of MD 
-#        if not self.MD:
-#            # write atomic positions
-#            atom_pos = []
-#            for i in ['x', 'y', 'z']:
-#                api = section['x_amber_geometry_atom_positions_' + i]
-#                if api is not None:
-#                    atom_pos.append(api)
-#            if atom_pos:
-#                # need to transpose array since its shape is [number_of_atoms,3] in the metadata
-#                backend.addArrayValues('atom_positions', np.transpose(np.asarray(atom_pos)))
-#            # write atom labels
-#            atom_labels = section['x_amber_geometry_atom_labels']
-#            if atom_labels is not None:
-#                backend.addArrayValues('atom_labels', np.asarray(atom_labels))
-#            # write atomic velocities in the case of MD
-#            if self.MD:
-#                atom_vel = []
-#                for i in ['x', 'y', 'z']:
-#                    avi = section['x_amber_geometry_atom_velocity_' + i]
-#                    if avi is not None:
-#                        atom_vel.append(avi)
-#                if atom_vel:
-#                    # need to transpose array since its shape is [number_of_atoms,3] in the metadata
-#                    backend.addArrayValues('atom_velocities', np.transpose(np.asarray(atom_vel)))
+            # Read the next step at trajectory in advance
+            # If iread returns None, it will be the last step
+            self.atompositions = self.trajectory.iread()
+
+#           if atom_vel:
+            # need to transpose array since its shape is [number_of_atoms,3] in the metadata
+            #backend.addArrayValues('atom_velocities', np.transpose(np.asarray(atom_vel)))
+
+        if (gIndex is None or gIndex == -1 or gIndex == "-1"):
+            SloppyBackend.closeSection("section_system", self.secSystemGIndex)
+
 #        # For MD, the coordinates of the unit cell are not repeated.
 #        # Therefore, we have to store the unit cell, which was read in the beginning, i.e. scfIterNr == -1.
 #        if not self.MD or self.scfIterNr == -1:
@@ -452,7 +576,6 @@ class AMBERParser(AmberC.AMBERParserBase):
 #                    self.MDUnitCell = unit_cell
 #                else:
 #                    backend.addArrayValues('simulation_cell', unit_cell)
-#                    backend.addArrayValues('configuration_periodic_dimensions', np.asarray([True, True, True]))
 #                self.periodicCalc = True
         # write stored unit cell in case of MD
 #        if self.periodicCalc and self.MD and self.scfIterNr > -1:
@@ -474,46 +597,8 @@ class AMBERParser(AmberC.AMBERParserBase):
         Write energy values at MD and with error in Minimization.
         Write reference to section_method and section_system
         """
-        # write number of Minimization steps
-        #backend.addValue('number_of_steps', self.minStepNr)
-#        # write Minimization convergence and reset
-#        backend.addValue('single_configuration_calculation_converged', self.minConvergence)
-#        self.minConvergence = False
-#        # start with -1 since zeroth iteration is the initialization
-#        self.minStepNr = -1
-#        # write converged energy/thermodynamic values
-#        # write forces
-#        forces_free = []
-#        for i in ['x', 'y', 'z']:
-#            fi = section['x_amber_atom_forces_free_' + i]
-#            if fi is not None:
-#                forces_free.append(fi)
-#        if forces_free:
-#            # need to transpose array since its shape is [number_of_atoms,3] in the metadata
-#            backend.addArrayValues('atom_forces_free', np.transpose(np.asarray(forces_free)))
-#        if self.forces_raw:
-#            # need to transpose array since its shape is [number_of_atoms,3] in the metadata
-#            backend.addArrayValues('atom_forces_free_raw', np.transpose(np.asarray(self.forces_raw)))
+
         self.lastCalculationGIndex = gIndex
-        exclude_list = set_excludeList(self)
-        include_list = set_includeList()
-        #for name in self.metaInfoEnv.infoKinds:
-        #    if name.startswith('x_amber_mdin_'):
-        #        exclude_list.append(name)
-        for k,v in section.simpleValues.items():
-            if (k.startswith('x_amber_section_single_') or
-                k.startswith('x_amber_mdout_')):
-                backend.superBackend.addValue(k, v[-1])
-#                if k in exclude_list and k not in include_list:
-#                    continue
-#                # default writeout
-#                else:
-#                    backend.superBackend.addValue(k, v[-1])
-        # get reference to current section_single_configuration_calculation if trajectory was found in there
-        if self.atompositions is not None:
-            self.trajRefSingleConfigurationCalculation = gIndex
-            print(self.atompositions)
-            self.atompositions = self.trajectory.iread()
 
         section_frameseq_Dict = get_updateDictionary(self, 'frameseq')
         updateFrameDict = {
@@ -549,7 +634,30 @@ class AMBERParser(AmberC.AMBERParserBase):
                 startsection=['section_single_configuration_calculation'],
                 autoopenclose=False)
         #backend.closeSection("section_single_configuration_calculation", self.secSingleGIndex)
+        self.onOpen_section_system(backend, None, None)
+        self.onClose_section_system(backend, None, None)
         backend.superBackend.closeSection("section_single_configuration_calculation", self.secSingleGIndex)
+
+        # write number of Minimization steps
+        #backend.addValue('number_of_steps', self.minStepNr)
+#        # write Minimization convergence and reset
+#        backend.addValue('single_configuration_calculation_converged', self.minConvergence)
+#        self.minConvergence = False
+#        # start with -1 since zeroth iteration is the initialization
+#        self.minStepNr = -1
+#        # write converged energy/thermodynamic values
+#        # write forces
+#        forces_free = []
+#        for i in ['x', 'y', 'z']:
+#            fi = section['x_amber_atom_forces_free_' + i]
+#            if fi is not None:
+#                forces_free.append(fi)
+#        if forces_free:
+#            # need to transpose array since its shape is [number_of_atoms,3] in the metadata
+#            backend.addArrayValues('atom_forces_free', np.transpose(np.asarray(forces_free)))
+#        if self.forces_raw:
+#            # need to transpose array since its shape is [number_of_atoms,3] in the metadata
+#            backend.addArrayValues('atom_forces_free_raw', np.transpose(np.asarray(self.forces_raw)))
 
     def setStartingPointCalculation(self, parser):
         backend = parser.backend

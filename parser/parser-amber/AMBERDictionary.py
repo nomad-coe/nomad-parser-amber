@@ -583,6 +583,9 @@ def get_updateDictionary(self, defname):
         'activeSections'  : ['x_amber_mdin_method']
         }
 
+    # ---------------------------------------------------------------
+    #   Definitions of meta data values for section_sampling_method
+    # ---------------------------------------------------------------
     sampling = { 
         'ensemble_type' : MetaInfoMap(startpage, 
             depends=[
@@ -770,6 +773,9 @@ def get_updateDictionary(self, defname):
             )
         }
 
+    # ------------------------------------------------------------
+    #   Definitions for section_single_configuration_calculation
+    # ------------------------------------------------------------
     singleconfcalc = { 
         #'atom_forces_type' : MetaInfoMap(startpage,
         #    depends=[{'assign' : 'Amber Force Field'}],
@@ -813,6 +819,7 @@ def get_updateDictionary(self, defname):
         'stress_tensor_value' : MetaInfoMap(startpage)
         }
 
+    # section_single_energy_van_der_Waals of section_single_configuration_calculation
     singlevdw = {
         'energy_van_der_Waals_value' : MetaInfoMap(startpage,
             depends=[{'value' : 'VDWAALS'}],
@@ -822,6 +829,9 @@ def get_updateDictionary(self, defname):
             ),
         }
    
+    # ------------------------------------------
+    #   Definitions for section_frame_sequence
+    # ------------------------------------------
     frameseq = { 
         'frame_sequence_conserved_quantity_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
@@ -940,49 +950,123 @@ def get_updateDictionary(self, defname):
         'previous_sequence_ref' : MetaInfoMap(startpage)
         }
 
+    # ----------------------------------
+    #   Definitions for section_system
+    # ----------------------------------
+    # section_system
+    sec_system = {
+        #'topology_ref' : MetaInfoMap(startpage),
+        'atom_velocities' : MetaInfoMap(startpage),
+        'configuration_raw_gid' : MetaInfoMap(startpage),
+        'local_rotations' : MetaInfoMap(startpage),
+        'number_of_atoms' : MetaInfoMap(startpage,
+            depends=[{'value' : 'NATOM'}],
+            lookupdict=self.parmDict
+            ),
+        'number_of_sites' : MetaInfoMap(startpage),
+        'number_of_symmetry_operations' : MetaInfoMap(startpage),
+        'reduced_symmetry_matrices' : MetaInfoMap(startpage),
+        'reduced_symmetry_translations' : MetaInfoMap(startpage),
+        'SC_matrix' : MetaInfoMap(startpage),
+        'spacegroup_3D_choice' : MetaInfoMap(startpage),
+        'spacegroup_3D_hall' : MetaInfoMap(startpage),
+        'spacegroup_3D_international' : MetaInfoMap(startpage),
+        'spacegroup_3D_number' : MetaInfoMap(startpage),
+        'spacegroup_3D_origin_shift' : MetaInfoMap(startpage),
+        'spacegroup_3D_pointgroup' : MetaInfoMap(startpage),
+        'spacegroup_3D_std_lattice' : MetaInfoMap(startpage),
+        'spacegroup_3D_std_positions' : MetaInfoMap(startpage),
+        'spacegroup_3D_std_types' : MetaInfoMap(startpage),
+        'spacegroup_3D_trasformation_matrix' : MetaInfoMap(startpage),
+        'spacegroup_3D_wyckoff' : MetaInfoMap(startpage),
+        'symmorphic' : MetaInfoMap(startpage),
+        'system_name' : MetaInfoMap(startpage,
+            subfunction=self.topology_system_name,
+            #functionbase=self
+            ),
+        'time_reversal_symmetry' : MetaInfoMap(startpage)
+        }
+
+    # section_configuration_core of section_system
+    configuration_core = {
+        'number_of_electrons' : MetaInfoMap(startpage,
+            value=0,
+            ),
+        'atom_labels' : MetaInfoMap(startpage,
+            #subfunction=self.system_atom_labels()
+            ),
+        'atom_positions' : MetaInfoMap(startpage,
+            #subfunction=self.system_atom_positions()
+            ),
+        'configuration_periodic_dimensions' : MetaInfoMap(startpage,
+            depends=[
+                {'test' : [['ntb', '== 0']],
+                 'assign' : np.asarray([False, False, False])},
+                {'test' : [['ntb', '> 0']],
+                 'assign' : np.asarray([True, True, True])}
+                ],
+            lookupdict=self.cntrlDict,
+            ),
+        'embedded_system' : MetaInfoMap(startpage),
+        'lattice_vectors' : MetaInfoMap(startpage,
+            #subfunction=self.system_lattice_vectors()
+            ),
+        'simulation_cell' : MetaInfoMap(startpage,
+            #subfunction=self.system_simulation_cell()
+            )
+        }
+
+    # section_spacegroup_3D_operation of section_system
+    spacegroup_op = {
+            'spacegroup_3D_rotation' : MetaInfoMap(startpage),
+            'spacegroup_3D_translation' : MetaInfoMap(startpage)
+        }
+
+    # section_system_to_system_refs of section_system
+    sys_to_sys = {
+            'system_to_system_kind' : MetaInfoMap(startpage),
+            'system_to_system_ref' : MetaInfoMap(startpage)
+        }
+
+    # --------------------------------------------------------
+    #   Definitions of meta data values for section_topology
+    # --------------------------------------------------------
+    # section_topology of section_run
     topology = {
+        'atom_to_molecule' : MetaInfoMap(startpage,
+            subfunction=self.topology_atom_to_mol,
+            #functionbase=self
+            ),
         'molecule_to_molecule_type_map' : MetaInfoMap(startpage),
         'number_of_topology_atoms' : MetaInfoMap(startpage,
             depends=[{'value' : 'NATOM'}],
             lookupdict=self.parmDict
             ),
-        'number_of_topology_molecules' : MetaInfoMap(startpage),
+        'number_of_topology_molecules' : MetaInfoMap(startpage,
+            subfunction=self.topology_num_topo_mol
+            ),
         'topology_force_field_name' : MetaInfoMap(startpage,
             value='Amber Force Field',
             )
         }
 
-    atom_list = {
-        'atom_to_molecule' : MetaInfoMap(startpage,
-            #subfunction=func_atom_to_mol()
-            ),
-        'number_of_electrons' : MetaInfoMap(startpage,
-            value=0,
-            ),
-        'atom_labels' : MetaInfoMap(startpage,
-            #subfunction=func_atom_labels()
-            ),
-        'atom_positions' : MetaInfoMap(startpage,
-            #subfunction=func_atom_positions()
-            ),
-        'configuration_periodic_dimensions' : MetaInfoMap(startpage,
-            #subfunction=func_pbc()
-            ),
-        'embedded_system' : MetaInfoMap(startpage),
-        'lattice_vectors' : MetaInfoMap(startpage,
-            #subfunction=func_lat_vec()
-            ),
-        'simulation_cell' : MetaInfoMap(startpage,
-            #subfunction=func_unitcell()
-            )
-        }
-
+    # section_atom_type of section_topology
     atom_type = {
         'atom_type_charge' : MetaInfoMap(startpage),
         'atom_type_mass' : MetaInfoMap(startpage),
         'atom_type_name' : MetaInfoMap(startpage)
         }
 
+    # section_constraint of section_topology
+    constraint = {
+        'constraint_atoms' : MetaInfoMap(startpage),
+        'constraint_kind' : MetaInfoMap(startpage),
+        'constraint_parameters' : MetaInfoMap(startpage),
+        'number_of_atoms_per_constraint' : MetaInfoMap(startpage),
+        'number_of_constraints' : MetaInfoMap(startpage)
+        }
+
+    # section_interaction of section_topology
     interaction = {
         'interaction_atoms' : MetaInfoMap(startpage),
         'interaction_kind' : MetaInfoMap(startpage),
@@ -991,13 +1075,27 @@ def get_updateDictionary(self, defname):
         'number_of_interactions' : MetaInfoMap(startpage)
         }
 
+    # -------------------------------------------------------------
+    #   Definitions of meta data values for section_molecule_type
+    # -------------------------------------------------------------
+    # section_molecule_type of section_topology
     mol_type = {
         'molecule_type_name' : MetaInfoMap(startpage),
         'number_of_atoms_in_molecule' : MetaInfoMap(startpage),
         'settings_atom_in_molecule' : MetaInfoMap(startpage)
         }
-   
-    molecule_interaction = {
+
+    # section_molecule_constraint of section_molecule_type
+    mol_constraint = {
+        'molecule_constraint_atoms' : MetaInfoMap(startpage),
+        'molecule_constraint_kind' : MetaInfoMap(startpage),
+        'molecule_constraint_parameters' : MetaInfoMap(startpage),
+        'number_of_atoms_per_molecule_constraint' : MetaInfoMap(startpage),
+        'number_of_molecule_constraints' : MetaInfoMap(startpage)
+        }
+
+    # section_molecule_interaction of section_molecule_type
+    mol_interaction = {
         'molecule_interaction_atoms' : MetaInfoMap(startpage),
         'molecule_interaction_kind' : MetaInfoMap(startpage),
         'molecule_interaction_parameters' : MetaInfoMap(startpage),
@@ -1005,6 +1103,7 @@ def get_updateDictionary(self, defname):
         'number_of_molecule_interactions' : MetaInfoMap(startpage)
         }
    
+    # section_atom_in_molecule of section_molecule_type
     atom_in_mol = {
         'atom_in_molecule_charge' : MetaInfoMap(startpage),
         'atom_in_molecule_name' : MetaInfoMap(startpage),
