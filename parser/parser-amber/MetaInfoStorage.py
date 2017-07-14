@@ -174,26 +174,28 @@ class Container(object):
                         self.Active = False
 
     def checkUpdateValue(self, item, localdict):
-        # Updating values follows the following order:
-        #  1) If 'depends' is supplied (not empty or not None), 
-        #     the tests in the depends list will be checked in order.
-        #     If one of the tests is successful than the one of the 
-        #     values in 'assign' or 'value' will be updated for the item.
-        #     Here 'assign' will assign a new value in the given string and
-        #     'value' will assign the value of the given key item.
-        #     (Ex. : 'assign' : 'CG' will update the item with 'CG' while 
-        #     'value' : 'NATOM' will update the item with number of atoms 
-        #     returned by the value of NATOM key ,which is stored in lookup dict.)
-        #  2) If 'depends' is supplied but a lookup dictionary is not than 
-        #     only the values of attributes in the sections can be used for test.
-        #     The rest of the tests and assignments are updated as in case (1).
-        #  3) If 'depends' is not supplied, subfunction is used to update value.
-        #  4) If 'depends' and subfunction are not supplied but value of 
-        #     MetaInfoMap is supplied, the value will be assign directly from the value 
-        #     item.
-        #  5) If none of the above items are supplied, this function will return None 
-        #     to not update any values for the selected item.
-        #
+        """ Updating value with the rules given in depends
+
+         Updating values follows the following order:
+          1) If 'depends' is supplied (not empty or not None), 
+             the tests in the depends list will be checked in order.
+             If one of the tests is successful than the one of the 
+             values in 'assign' or 'value' will be updated for the item.
+             Here 'assign' will assign a new value in the given string and
+             'value' will assign the value of the given key item.
+             (Ex. : 'assign' : 'CG' will update the item with 'CG' while 
+             'value' : 'NATOM' will update the item with number of atoms 
+             returned by the value of NATOM key ,which is stored in lookup dict.)
+          2) If 'depends' is supplied but a lookup dictionary is not than 
+             only the values of attributes in the sections can be used for test.
+             The rest of the tests and assignments are updated as in case (1).
+          3) If 'depends' is not supplied, subfunction is used to update value.
+          4) If 'depends' and subfunction are not supplied but value of 
+             MetaInfoMap is supplied, the value will be assign directly from the value 
+             item.
+          5) If none of the above items are supplied, this function will return None 
+             to not update any values for the selected item.
+        """
         # Check whether depends is supplied in the item.
         updateValue = None
         storeValue = False
