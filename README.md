@@ -1,6 +1,6 @@
-# Amber Parser
+# AMBER Parser
 ## Version 0.0.1a
-This is the parser for SANDER and PMEMD Molecular Dynamics codes in [Amber](http://ambermd.org).
+This is the parser for SANDER and PMEMD Molecular Dynamics codes in [AMBER](http://ambermd.org).
 The official version lives at:
 
     git@gitlab.mpcdf.mpg.de:nomad-lab/parser-amber.git
@@ -23,12 +23,12 @@ The required python packages can be installed with (see [python-common](https://
     pip install -r nomad-lab-base/python-common/requirements.txt
 
 ## Usage
-Amber (SANDER/PMEMD) output files can be parsed with:
+AMBER (SANDER/PMEMD) output files can be parsed with:
 
     python AMBERParser.py [path/toFile]
 
 ## Test Files
-Example output files of Amber (SANDER/PMEMD) can be found in the directory test/examples.
+Example output files of AMBER (SANDER/PMEMD) can be found in the directory test/examples.
 More details about the calculations and files will be explained in this README file.
 
 # Documentation
