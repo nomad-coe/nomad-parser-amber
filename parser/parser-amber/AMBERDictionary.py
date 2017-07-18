@@ -162,6 +162,47 @@ class MapDictionary(dict):
     def get_keys(self):
         return [val.metaName for val in self.__dict__.values()]
 
+def get_unitDict(keyname):
+    unitDict = {
+        "si" : {
+            "meter"          : "1.0",
+            "kilo"           : "1.0e3",
+            "gram"           : "1.0e-3",
+            "second"         : "1.0",
+            "joule"          : "1.0",
+            "newton"         : "1.0",
+            "kelvin"         : "1.0",
+            "pascal"         : "1.0",
+            "coulomb"        : "1.0",
+            "volt"           : "1.0",
+            "centi"          : "1.0e-2",
+            "milli"          : "1.0e-3",
+            "micro"          : "1.0e-6",
+            "nano"           : "1.0e-9",
+            "pico"           : "1.0e-12",
+            "femto"          : "1.0e-15",
+            "atto"           : "1.0e-18",
+            "erg"            : "1.0e-7",
+            "dyne"           : "1.0e-5",
+            "barye"          : "1.0e-1",
+            "bar"            : "1.0e-1",
+            "angstrom"       : "1.0e-10",
+            "kcal"           : "4184.096739614824",
+            "mole"           : "0.602213737699784e24",
+            "atmosphere"     : "1.01325e5",
+            "electron"       : "1.602176565e-19",
+            "atomicmassunit" : "1.66054e-27",
+            "amu"            : "1.66054e-27",
+            "bohr"           : "5.29177249e-11",
+            "hartree"        : "4.35974e-18",
+            "pascal"         : "1.0",
+            }}
+    if keyname == "amber":
+        resDict = unitDict["si"]
+    else:
+        resDict = unitDict["si"]
+    return resDict
+
 def metaNameConverter(keyName):
     newName = keyName.lower().replace(" ", "").replace("-", "")
     newName = newName.replace("(", "").replace(")", "")
@@ -789,6 +830,8 @@ def get_updateDictionary(self, defname):
         'energy_current' : MetaInfoMap(startpage),
         'energy_electrostatic' : MetaInfoMap(startpage,
             depends=[{'value' : 'EELEC'}],
+            unitdict=self.unitDict,
+            unit='electron-volt',
             lookupdict=self.mddataDict
             ),
         'energy_free_per_atom' : MetaInfoMap(startpage),
@@ -802,6 +845,8 @@ def get_updateDictionary(self, defname):
         'energy_total_T0' : MetaInfoMap(startpage),
         'energy_total' : MetaInfoMap(startpage,
             depends=[{'value' : 'Etot'}],
+            unitdict=self.unitDict,
+            unit='electron-volt',
             lookupdict=self.mddataDict
             ),
         'hessian_matrix' : MetaInfoMap(startpage),
@@ -824,6 +869,8 @@ def get_updateDictionary(self, defname):
         'energy_van_der_Waals_value' : MetaInfoMap(startpage,
             depends=[{'value' : 'VDWAALS'}],
             lookupdict=self.mddataDict,
+            unitdict=self.unitDict,
+            unit='electron-volt',
             #autoSections=True,
             activeSections=['section_energy_van_der_Waals']
             ),
@@ -835,73 +882,102 @@ def get_updateDictionary(self, defname):
     frameseq = { 
         'frame_sequence_conserved_quantity_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
+            valtype='int',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_conserved_quantity_stats' : MetaInfoMap(startpage),
         'frame_sequence_conserved_quantity' : MetaInfoMap(startpage,
             depends=[{'store' : 'RESTRAINT'}],
+            valtype='float',
+            unitdict=self.unitDict,
+            unit='electron-volt',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_continuation_kind' : MetaInfoMap(startpage),
         'frame_sequence_external_url' : MetaInfoMap(startpage),
         'frame_sequence_kinetic_energy_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
+            valtype='int',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_kinetic_energy_stats' : MetaInfoMap(startpage),
         'frame_sequence_kinetic_energy' : MetaInfoMap(startpage,
             depends=[{'store' : 'EKtot'}],
+            valtype='float',
+            unitdict=self.unitDict,
+            unit='electron-volt',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_local_frames_ref' : MetaInfoMap(startpage),
         'frame_sequence_potential_energy_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
+            valtype='int',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_potential_energy_stats' : MetaInfoMap(startpage),
         'frame_sequence_potential_energy' : MetaInfoMap(startpage,
             depends=[{'store' : 'EPtot'}],
+            valtype='float',
+            unitdict=self.unitDict,
+            unit='electron-volt',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_pressure_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
+            valtype='int',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_pressure_stats' : MetaInfoMap(startpage),
         'frame_sequence_pressure' : MetaInfoMap(startpage,
             depends=[{'store' : 'PRESS'}],
+            valtype='float',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_temperature_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
+            valtype='int',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_temperature_stats' : MetaInfoMap(startpage),
         'frame_sequence_temperature' : MetaInfoMap(startpage,
             depends=[{'store' : 'TEMP\(K\)'}],
+            valtype='float',
+            unitdict=self.unitDict,
+            unit='Kelvin',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_time' : MetaInfoMap(startpage,
             depends=[{'store' : 'TIME\(PS\)'}],
+            valtype='float',
+            unitdict=self.unitDict,
+            unit='pico-second',
             lookupdict=self.mddataDict
             ),
         'x_amber_frame_sequence_volume_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
+            valtype='int',
             lookupdict=self.mddataDict
             ),
         'x_amber_frame_sequence_volume' : MetaInfoMap(startpage,
             depends=[{'store' : 'VOLUME'}],
+            valtype='float',
+            unitdict=self.unitDict,
+            unit='Angstrom**3',
             lookupdict=self.mddataDict
             ),
         'x_amber_frame_sequence_density_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
+            valtype='int',
             lookupdict=self.mddataDict
             ),
         'x_amber_frame_sequence_density' : MetaInfoMap(startpage,
             depends=[{'store' : 'Density'}],
+            valtype='float',
+            unitdict=self.unitDict,
+            unit='1.0/Angstrom**3',
             lookupdict=self.mddataDict
             ),
-        'frame_sequence_to_sampling_ref' : MetaInfoMap(startpage),
+        #'frame_sequence_to_sampling_ref' : MetaInfoMap(startpage),
         'geometry_optimization_converged' : MetaInfoMap(startpage,
             value=self.minConverged
             ),
@@ -947,7 +1023,7 @@ def get_updateDictionary(self, defname):
                     )['frame_sequence_temperature_frames']
                 ])
             ),
-        'previous_sequence_ref' : MetaInfoMap(startpage)
+        #'previous_sequence_ref' : MetaInfoMap(startpage)
         }
 
     # ----------------------------------

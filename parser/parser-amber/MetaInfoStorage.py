@@ -200,7 +200,8 @@ class Container(object):
         updateValue = None
         storeValue = False
         if "prefunction" in item:
-            storeValue, updateValue, item = item.functionbase.eval(item.prefunction % item)
+            prefunc = item.prefunction
+            storeValue, updateValue, item = prefunc(item)
         if "depends" in item:
             firstdepend = item["depends"][0]
             if "lookupdict" in item:
@@ -257,7 +258,29 @@ class Container(object):
         elif "value" in item:
             updateValue = item['value']
         if "postfunction" in item:
-            storeValue, updateValue, item = item.functionbase.eval(item.postfunction % item)
+            postfunc = item.postfunction
+            storeValue, updateValue, item = postfunc(item)
+        if "valtype" in item:
+            if(isinstance(updateValue, list) or isinstance(updateValue, tuple)):
+                newUpdateValue = [eval(
+                    item["valtype"]+"("+str(ival)+")"
+                    ) for ival in updateValue]
+            elif isinstance(updateValue, str):
+                newUpdateValue = eval(item["valtype"]+"("+str(updateValue)+")")
+            else:
+                newUpdateValue = updateValue
+        if("unit" in item and "unitdict" in item):
+            if(isinstance(updateValue, list) or isinstance(updateValue, tuple)):
+                updateValue = [self.unitConverter(
+                    ival, item["unit"], item["unitdict"]
+                    ) for ival in updateValue]
+            elif(isinstance(updateValue, str) and float(updateValue)):
+                updateValue = float(updateValue)
+                updateValue = self.unitConverter(
+                    updateValue, item["unit"], item["unitdict"])
+            else:
+                updateValue = self.unitConverter(
+                    updateValue, item["unit"], item["unitdict"])
         return storeValue, updateValue, localdict
 
     def checkTestsDicts(self, item, localdict):
@@ -319,6 +342,24 @@ class Container(object):
                         return checkval, localdict
         return None, localdict
 
+    def unitConverter(self, updateValue, unit, unitdict):
+        """ Unit converter using definitions of units explicitly
+
+            The unit names are converted to numbers and the resulting
+            expression will be evaluated by python.
+            Ex.: unit = 'electron-volt/Angstrom^2' 
+                 will be converted to
+                 unit = '1.602176565e-19*1.0/1.0e-10**2'
+                 factor = eval(unit) = 16.02176565 Joule/meter^2
+                 in SI units and the result will be calculated as follows:
+                 output_value = input_value * factor
+        """
+        newunit = unit.lower()
+        newunit = newunit.replace('-','*').replace(' ', '*').replace('^', "**")
+        for key,value in unitdict.items():
+            newunit = newunit.replace(str(key), str(value))
+        return float(updateValue) * float(eval(newunit))
+
     def findNameInLookupDict(self, metaname, lookupdict):
         for item in lookupdict:
             itemMap = lookupdict[item]
@@ -349,11 +390,18 @@ class Container(object):
                         #If we need to store the updated values
                         if self.Storage.__dict__[itemk]["val"] is None:
                             #If not initialized, initialize with a list to store
-                            self.Storage.__dict__[itemk]["val"] = [updateValue]
+                            if isinstance(updateValue, str) and float(updateValue):
+                                self.Storage.__dict__[itemk]["val"] = [float(updateValue)]
+                            else:
+                                self.Storage.__dict__[itemk]["val"] = [updateValue]
                         else:
                             #Append to the stored list if there is a list
                             if type(self.Storage.__dict__[itemk]["val"]) is list:
-                                self.Storage.__dict__[itemk]["val"].append(updateValue)
+                                #self.Storage.__dict__[itemk]["val"].append(updateValue)
+                                if isinstance(updateValue, str) and float(updateValue):
+                                    self.Storage.__dict__[itemk]["val"].append(float(updateValue))
+                                else:
+                                    self.Storage.__dict__[itemk]["val"].append(updateValue)
                             else:
                                 #Convert the prevoius update to list and append update
                                 preValue = self.Storage.__dict__[itemk]["val"]
@@ -643,14 +691,14 @@ if __name__ == "__main__":
             'startSection' : [['section_topology']],
             'muteSections' : [['section_interaction']],
             'dictionary' : {
-                'molecule_constraint_atoms' : {'value' : 100, 'depends' : {}},
-                'interaction_atoms' : {'value' : 10, 'depends' : {}},
-                'topology_force_field_name' : {'value' : "ReaxFF", 'depends' : {}}
+                'molecule_constraint_atoms' : {'depends' : [[]], 'assign' : 100},
+                'interaction_atoms' : {'depends' : [[]], 'assign' : 10},
+                'topology_force_field_name' : {'depends' : [[]], 'assign' : "ReaxFF"}
                 }
             }
     
     run.populate(jsonmetadata, 'section_run', exclude_dict, updateDict)
-    #run.Color = 4
+    run.Color = 4
     for container in run.Containers:
         if 'section_topology' in container.Name:
             select = container

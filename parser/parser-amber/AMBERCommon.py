@@ -5,7 +5,7 @@ from nomadcore.unit_conversion.unit_conversion import convert_unit
 from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import mainFunction
 from nomadcore.simple_parser import SimpleMatcher as SM
-from AMBERDictionary import get_nameListDict, get_fileListDict, set_excludeList, set_includeList
+from AMBERDictionary import get_unitDict, get_nameListDict, get_fileListDict, set_excludeList, set_includeList
 from MetaInfoStorage import COMMON_META_INFO_PATH, PUBLIC_META_INFO_PATH
 import MetaInfoStorage as mStore
 import logging
@@ -121,6 +121,7 @@ class AMBERParserBase(object):
                 )
         self.metaStorage.build(jsonmetadata, 'section_run', exclude_dict)
         self.re_program_name = re_program_name
+        self.unitDict = get_unitDict('si')
         self.fileDict = get_fileListDict()
         self.cntrlDict = get_nameListDict('cntrl')
         self.ewaldDict = get_nameListDict('ewald')
