@@ -326,7 +326,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                     #    self.superP.addValue('interaction_kind', bondFunctional)  # functional form of the interaction
 
                     # this points to the relative section_atom_type
-                    self.superP.addArrayValues('x_lammps_interaction_atom_to_atom_type_ref', 
+                    self.superP.addArrayValues('x_amber_interaction_atom_to_atom_type_ref', 
                             np.asarray(interTypeDict[elm]))  
                     # interaction parameters for the functional
                     #self.superP.addValue('interaction_parameters', bondParameters)  
@@ -502,6 +502,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         updateDict = {
             'startSection' : [
                 ['section_topology']],
+            'muteSections' : [['section_sampling_method']],
             #'muteSections' : [['section_method']],
             'dictionary' : section_topology_Dict
             }
@@ -545,7 +546,8 @@ class AMBERParser(AmberC.AMBERParserBase):
             self.trajRefSingleConfigurationCalculation = gIndex
             SloppyBackend.addArrayValues('atom_positions', np.transpose(np.asarray(self.atompositions[0])))
             if self.topology is not None:
-                #SloppyBackend.addArrayValues('atom_labels', np.asarray(atom_labels))
+                atom_labels = self.topologyDict["element"]
+                SloppyBackend.addArrayValues('atom_labels', np.asarray(atom_labels))
                 pass
 
             # Read the next step at trajectory in advance
@@ -604,7 +606,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         updateFrameDict = {
             'startSection' : [
                 ['section_frame_sequence']],
-            'muteSections' : [['section_method']],
+            'muteSections' : [['section_sampling_method']],
             'dictionary' : section_frameseq_Dict
             }
         self.metaStorage.update(updateFrameDict)
@@ -612,6 +614,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         updateDictVDW = {
             'startSection' : [
                 ['section_energy_van_der_Waals']],
+            'muteSections' : [['section_sampling_method']],
             #'muteSections' : [['section_method']],
             'dictionary' : section_singlevdw_Dict
             }
@@ -625,6 +628,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         updateDict = {
             'startSection' : [
                 ['section_single_configuration_calculation']],
+            'muteSections' : [['section_sampling_method']],
             #'muteSections' : [['section_method']],
             'dictionary' : section_singlecalc_Dict
             }
