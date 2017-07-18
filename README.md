@@ -1,6 +1,6 @@
 # Amber Parser
 ## Version 0.0.1a
-This is the parser for SANDER and PMEMD Molecular Dynamics codes in [Amber](http://ambermd.org).
+This is the parser for SANDER and PMEMD Molecular Dynamics codes in [AMBER](http://ambermd.org).
 The official version lives at:
 
     git@gitlab.mpcdf.mpg.de:nomad-lab/parser-amber.git
