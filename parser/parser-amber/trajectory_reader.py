@@ -77,16 +77,29 @@ class TrajectoryReader(object):
                 logger.warning("ASE could not read the file '{}' with format '{}'. The contents might be malformed or wrong format used.".format(filename, file_format))
         return self.trajhandler
     
+    def load_topology(self):
+        """Loads the file handles for topology only
+        """
+        
+        if self.topohandler is None:
+            if self.topofile:
+                self.check_topology_format_support()
+        if self.topohandler is None:
+            logger.error("The topology file format '{}' is not supported by TrajectoryReader.".format(self.topoformat))
+
+        return self.topohandler
+    
     def get_file_format(self, filename, givenformat):
         """Returns extension of file
         """
         file_format = None
         if givenformat:
+            fname = filename.split("/")[-1]
             # MDTraj expects that extensions start with dot
-            if '.' not in filename:
-                file_format = "." + filename.lower()
+            if '.' not in fname:
+                file_format = "." + fname.lower()
             else:
-                file_format = filename.lower()
+                file_format = fname.lower()
         else:
             extension = filename.split(".")[-1]
             file_format = "." + extension.lower()
@@ -185,7 +198,7 @@ class TrajectoryReader(object):
         try:
             while True:
                 self.trajiter = next(iterator_object)
-                return self.trajiter.xyz
+                return self.trajiter
         except StopIteration:
             pass
         finally:
@@ -196,6 +209,12 @@ class TrajectoryReader(object):
         configuration at a time.
         """
         return self.topohandler
+
+    def get_unitcell(self):
+        """Returns an iterator that goes through the given trajectory file one
+        configuration at a time.
+        """
+        return self.trajhandler.cell_lengths
 
     def load_mdtraj_topology(self, file_format, **kwargs):
         """Borrowed from mdtraj.trajectory to remove 
@@ -382,7 +401,7 @@ class TrajectoryReader(object):
                                 for pos in positions:
                                     yield pos
                 except IOError:
-                    logger.warning("MDTraj could not read the file '{}' with format '{}'. The contents might be malformed or wrong format used.".format(self.trajfile, self.trajformat))
+                    #logger.warning("MDTraj could not read the file '{}' with format '{}'. The contents might be malformed or wrong format used.".format(self.trajfile, self.trajformat))
                     return
 
     def custom_iread(self, file_handle, format):
@@ -420,14 +439,128 @@ if __name__ == "__main__":
     if atom is not None:
         readaccess = True
     
-    if readaccess:
-        while True:
-            if atom is not None:
-                print(atom)
-                print(readdata.natoms())
-                i += 1
-            else:
-                break
-            atom = readdata.iread()
+#    if readaccess:
+#        while True:
+#            if atom is not None:
+#                print(atom)
+#                print(readdata.natoms())
+#                i += 1
+#            else:
+#                break
+#            atom = readdata.iread()
     print(i)
+#    angles = mdtraj.compute_angles(mytopology)
+#    dihedrals = mdtraj.compute_dihedrals(mytopology)
+#    print(dihedrals)
+    #print(' Chains: %s' % [res for res in mytopology.chains])
+    #print(' Residues: %s' % [res for res in mytopology.residues])
+    #print(' Atoms: %s' % [res for res in mytopology.atoms])
+    #print(' Bonds: %s' % [res for res in mytopology.bonds])
+    #print(mytopology.chain(0))
+    table, bonds = mytopology.to_dataframe()
+    print(bonds)
+    print(len(bonds))
+    array = table.get("resSeq")
+    #print([res for res in array])
+    mydict = table.to_dict(orient='list')
+    mylist = mydict["resSeq"]
+    print('mylist')
+    print(mylist)
+    print('mylist')
+    atomindex = np.arange(len(mylist))
+    passarray = np.zeros((len(mylist), 2), dtype=int)
+    passarray[:,0] = atomindex
+    passarray[:,1] = mylist
+    print(table)
+    print(passarray)
+    #print(bonds)
+#    for bond in bonds:
+#        print(bond)
+    mol_to_mol_bond = []
+    mol_to_mol_bond_num = []
+    atom_in_mol_bond = []
+    atom_in_mol_bond_num = []
+    index=0
+    print(len([res for res in mytopology.bonds]))
+    for res in mytopology.bonds:
+        molname1, molatom1 = str(res[0]).split('-')
+        molname2, molatom2 = str(res[1]).split('-')
+        if molname1 in molname2: 
+            atom_in_mol_bond.append(res)
+            atom_in_mol_bond_num.append(bonds[index])
+        else:
+            mol_to_mol_bond.append(res)
+            mol_to_mol_bond_num.append(bonds[index])
+        index += 1
+    print(mol_to_mol_bond)
+    print(np.array(mol_to_mol_bond_num))
+
+    atom_list = list(set(mydict["name"]))
+    atom_type_dict = {}
+    print(atom_list)
+    print(len(atom_list))
+    masses = {}
+    for ielm in range(len(atom_list)):
+        elm = atom_list[ielm]
+        atom_type_dict.update({elm : ielm})
+        for atom in mytopology.atoms:
+            if elm == atom.name:
+                masses.update({atom.name : atom.element})
+    print([atom_list, masses])
+    interDict = {}
+    interTypeDict = {}
+    for elm in atom_list:
+        bondList = []
+        typeList = []
+        bondid = 0
+        for bond in mytopology.bonds:
+            molname1, molatom1 = str(bond[0]).split('-')
+            molname2, molatom2 = str(bond[1]).split('-')
+            if (elm == str(molatom1) or elm == str(molatom2)):
+                bondList.append(list(bonds[bondid]))
+                #typeList.append(list([molatom1,molatom2]))
+                typeList.append(list([
+                    atom_type_dict[str(molatom1)],
+                    atom_type_dict[str(molatom2)]
+                    ]))
+                interDict.update({elm : bondList})
+                interTypeDict.update({elm : typeList})
+            bondid += 1
+
+#    print(interDict)
+    print(interDict["CH3"])
+    print(interTypeDict["CH3"])
+    print(len(interDict["CH3"][0]))
+
+#    print([[atom.element.radius, atom.index, atom.name, atom.residue.name, atom.element] for atom in mytopology.atoms])
+
+# Atom labels:
+    print(table)
+#    for atom in mytopology.atoms:
+#        print(atom)
+    labellist = mydict["element"]
+    #print(labellist)
+#    atomlabels = np.arange(len(labellist))
+#    labelarray = np.zeros((len(labellist), 2), dtype=int)
+#    labelarray[:,0] = atomlabels
+#    labelarray[:,1] = labellist
+#    print(labelarray)
+#    print(readdata.unitcell_lengths)
+    latticevectors = readdata.iread().unitcell_vectors
+    box = readdata.iread().unitcell_lengths
+    step = 0
+    for latvec in latticevectors:
+        print(step, latvec)
+        step += 1
+    for pbc in box:
+        print(step, box)
+        step += 1
+
+
+
+            
+
+
+
+
 

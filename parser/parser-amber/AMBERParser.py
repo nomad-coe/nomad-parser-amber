@@ -113,10 +113,11 @@ class AMBERParser(AmberC.AMBERParserBase):
         self.trajectoryFormat = None
         self.trajectoryFile = None
         self.readChunk = 300
-        self.unitcell = None
+        self.boxlengths = None
+        self.latticevectors = None
         self.atompositions = None
         # start with -1 since zeroth iteration is the initialization
-        self.mdIterNr = -1
+        self.MDiter = -1
         self.singleConfCalcs = []
         self.minConverged = None
         self.parsedLogFile = False
@@ -190,7 +191,10 @@ class AMBERParser(AmberC.AMBERParserBase):
                     self.atompositions = self.trajectory.iread()
                     if self.atompositions is not None:
                         self.topology = self.trajectory.get_topology()
+                        self.MDiter += 1
                         return fileFormat
+            else:
+                self.MDiter += 1
 
     def initializeFileHandlers(self):
         # Files will be loaded using their extensions initially.
@@ -531,9 +535,12 @@ class AMBERParser(AmberC.AMBERParserBase):
 
         if self.atompositions is not None:
             self.trajRefSingleConfigurationCalculation = gIndex
-            SloppyBackend.addArrayValues('atom_positions', np.transpose(
-                np.asarray(self.metaStorage.convertUnits(self.atompositions[0], "Angstrom", self.unitDict)
-                )))
+            unit_cell = np.asarray(self.metaStorage.convertUnits(
+                self.atompositions.unitcell_vectors[0], "Angstrom", self.unitDict))
+            SloppyBackend.addArrayValues('simulation_cell', unit_cell)
+            SloppyBackend.addArrayValues('lattice_vectors', unit_cell)
+            SloppyBackend.addArrayValues('atom_positions', np.transpose(np.asarray(
+                self.metaStorage.convertUnits(self.atompositions.xyz[0], "Angstrom", self.unitDict))))
             if self.topology is not None:
                 atom_labels = self.topologyDict["element"]
                 SloppyBackend.addArrayValues('atom_labels', np.asarray(atom_labels))
@@ -542,36 +549,14 @@ class AMBERParser(AmberC.AMBERParserBase):
             # Read the next step at trajectory in advance
             # If iread returns None, it will be the last step
             self.atompositions = self.trajectory.iread()
+            self.MDiter += 1
 
-#           if atom_vel:
+            #if atom_vel:
             # need to transpose array since its shape is [number_of_atoms,3] in the metadata
             #backend.addArrayValues('atom_velocities', np.transpose(np.asarray(atom_vel)))
 
         if (gIndex is None or gIndex == -1 or gIndex == "-1"):
             SloppyBackend.closeSection("section_system", self.secSystemGIndex)
-
-#        # For MD, the coordinates of the unit cell are not repeated.
-#        # Therefore, we have to store the unit cell, which was read in the beginning, i.e. scfIterNr == -1.
-#        if not self.MD or self.scfIterNr == -1:
-#            # write/store unit cell if present and set flag self.periodicCalc
-#            unit_cell = []
-#            for i in ['x', 'y', 'z']:
-#                uci = section['x_amber_geometry_lattice_vector_' + i]
-#                if uci is not None:
-#                    unit_cell.append(uci)
-#            if unit_cell:
-#                unit_cell = np.transpose(unit_cell)
-#                # from metadata: "The first index is x,y,z and the second index the lattice vector."
-#                # => unit_cell has already the right format
-#                if self.MD:
-#                    self.MDUnitCell = unit_cell
-#                else:
-#                    backend.addArrayValues('simulation_cell', unit_cell)
-#                self.periodicCalc = True
-        # write stored unit cell in case of MD
-#        if self.periodicCalc and self.MD and self.scfIterNr > -1:
-#            backend.addArrayValues('simulation_cell', self.MDUnitCell)
-#            backend.addArrayValues('configuration_periodic_dimensions', np.asarray([True, True, True]))
 
     def onOpen_section_single_configuration_calculation(self, backend, gIndex, section):
         # write the references to section_method and section_system
