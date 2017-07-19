@@ -280,23 +280,26 @@ class Container(object):
     
     def convertUnits(self, updateValue, unit, unitdict):
         if(isinstance(updateValue, list) or isinstance(updateValue, tuple)):
-            updateValue = [self.unitConverter(
-                ival, unit, unitdict
+            updateValue = [float(ival) * self.unitConverter(
+                unit, unitdict
                 ) for ival in updateValue]
         elif isinstance(updateValue, np.ndarray):
-            updateValue = np.asarray([self.unitConverter(
-                ival, unit, unitdict
-                ) for ival in updateValue])
+            updateValue = updateValue * self.unitConverter(
+                unit, unitdict)
+            #updateValue = np.asarray([self.unitConverter(
+            #    ival, unit, unitdict
+            #    ) for ival in updateValue])
         elif self.is_number(updateValue):
             updateValue = self.convertToNumber(updateValue, "float")
-            updateValue = self.unitConverter(
-                updateValue, unit, unitdict)
+            updateValue = updateValue * self.unitConverter(
+                unit, unitdict)
         else:
             # I hope you know what you are doing
-            updateValue = self.unitConverter(
-                updateValue, unit, unitdict)
+            updateValue = float(updateValue) * self.unitConverter(
+                unit, unitdict)
+        return updateValue
 
-    def unitConverter(self, updateValue, unit, unitdict):
+    def unitConverter(self, unit, unitdict):
         """ Unit converter using definitions of units explicitly
 
             The unit names are converted to numbers and the resulting
@@ -312,7 +315,7 @@ class Container(object):
         newunit = newunit.replace('-','*').replace(' ', '*').replace('^', "**")
         for key,value in unitdict.items():
             newunit = newunit.replace(str(key), str(value))
-        return float(updateValue) * float(eval(newunit))
+        return float(eval(newunit))
 
     def checkTestsDicts(self, item, localdict):
         for depdict in item["depends"]:

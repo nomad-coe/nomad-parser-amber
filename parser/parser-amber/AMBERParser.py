@@ -531,7 +531,9 @@ class AMBERParser(AmberC.AMBERParserBase):
 
         if self.atompositions is not None:
             self.trajRefSingleConfigurationCalculation = gIndex
-            SloppyBackend.addArrayValues('atom_positions', np.transpose(np.asarray(self.atompositions[0])))
+            SloppyBackend.addArrayValues('atom_positions', np.transpose(
+                np.asarray(self.metaStorage.convertUnits(self.atompositions[0], "Angstrom", self.unitDict)
+                )))
             if self.topology is not None:
                 atom_labels = self.topologyDict["element"]
                 SloppyBackend.addArrayValues('atom_labels', np.asarray(atom_labels))
@@ -728,10 +730,6 @@ class AMBERParser(AmberC.AMBERParserBase):
                         lastLine = parser.fIn.readline()
 
     def build_mdinKeywordsSimpleMatchers(self):
-        cntrlDefVals={ 'x_amber_settings_integrator_type':   'molecular_dynamics', 
-                       'x_amber_settings_integrator_dt__ps': '0.001', 
-                       'x_amber_ensemble_type':              'NVE'
-                     },
         cntrlNameList=getList_MetaStrInDict(self.cntrlDict)
         ewaldNameList=getList_MetaStrInDict(self.ewaldDict)
         qmmmNameList=getList_MetaStrInDict(self.qmmmDict)
