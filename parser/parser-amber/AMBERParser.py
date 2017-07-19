@@ -200,9 +200,9 @@ class AMBERParser(AmberC.AMBERParserBase):
         for fileItem in self.fileDict:
             if (self.fileDict[fileItem].fileSupplied and
                 self.fileDict[fileItem].activeInfo):
-                # First check topology file
+                # First, check topology file
                 topoformat = self.topologyFileHandler(fileItem)
-                # Second check trajectory file
+                # Second, check trajectory file
                 trajformat = self.trajectoryFileHandler(fileItem, topoformat)
         if self.topology:
             self.topologyTable, self.topologyBonds = self.topology.to_dataframe()
@@ -467,7 +467,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         section_sampling_Dict = get_updateDictionary(self, 'sampling')
         updateDict = {
             'startSection' : [['section_sampling_method']],
-            #'muteSections' : [['section_system']],
             'dictionary' : section_sampling_Dict
             }
         #self.secSamplingGIndex = backend.openSection("section_sampling_method")
@@ -492,7 +491,6 @@ class AMBERParser(AmberC.AMBERParserBase):
             'startSection' : [
                 ['section_topology']],
             'muteSections' : [['section_sampling_method']],
-            #'muteSections' : [['section_method']],
             'dictionary' : section_topology_Dict
             }
         self.metaStorage.update(updateDict)
@@ -604,7 +602,6 @@ class AMBERParser(AmberC.AMBERParserBase):
             'startSection' : [
                 ['section_energy_van_der_Waals']],
             'muteSections' : [['section_sampling_method']],
-            #'muteSections' : [['section_method']],
             'dictionary' : section_singlevdw_Dict
             }
         self.secVDWGIndex = backend.superBackend.openSection("section_energy_van_der_Waals")
@@ -618,7 +615,6 @@ class AMBERParser(AmberC.AMBERParserBase):
             'startSection' : [
                 ['section_single_configuration_calculation']],
             'muteSections' : [['section_sampling_method']],
-            #'muteSections' : [['section_method']],
             'dictionary' : section_singlecalc_Dict
             }
         self.metaStorage.update(updateDict)
@@ -905,7 +901,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             startReStr=r"\s*--{5}--*\s*|\s*Flags:",
             endReStr=r"\s*--{5}--*\s*2\.\s*CONTROL\s*",
             forwardMatch=True,
-#            subFlags=SM.SubFlags.Unordered,
+            #subFlags=SM.SubFlags.Unordered,
             subMatchers=[
                 SM(r"\|\s*Flags\s*:\s*(?P<x_amber_parm_flags>[0-9a-zA-Z]+)?\s*$"),
                 SM(r"\s*getting\s*new\s*box\s*info\s*from\s*(?:bottom\s*of\s*|netcdf)(?P<x_amber_mdin_finline>[0-9a-zA-Z]+)\s*(file)?\s*", 
@@ -932,7 +928,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         mdoutSubMatcher = SM(name='mdoutKeywords',
             startReStr=r"\s*General\s*flags:",
             forwardMatch=True,
-#            subFlags=SM.SubFlags.Unordered,
+            #subFlags=SM.SubFlags.Unordered,
             subMatchers=mdoutKeywordsSimpleMatchers
             )
 
@@ -940,20 +936,15 @@ class AMBERParser(AmberC.AMBERParserBase):
         # submatcher for MD
         mddataNameList=getList_MetaStrInDict(self.mddataDict)
         MDSubMatcher = SM(name='MDStep',
-#            startReStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS)",
             startReStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS\s*)",
-#            endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
-#            sections=['x_amber_section_single_configuration_calculation'],
-            #sections = ['section_method','section_single_configuration_calculation'],
-            #sections=['section_single_configuration_calculation', 'section_system'],
+            #endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
             forwardMatch=True,
             subMatchers=[
-#                SM(startReStr=(r"\s*(?:" + 
                    SM(startReStr=(r"\s*(?:(?:" + 
                    '|'.join(["%s" % (cName) for cName in mddataNameList]) + 
                    "AMBER)\s*=\s*|NSTEP\s*ENERGY\s*RMS\s*)(?:'|\")?" +
                    "(?P<x_amber_mdin_finline>[\-+0-9.:a-zA-Z]+)(?:'|\")?\s*,?"),
-#                   endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
+                   #endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
                    coverageIgnore=True, 
                    adHoc=lambda p: 
                    self.adHoc_read_namelist_stop_parsing(p, 
@@ -965,7 +956,6 @@ class AMBERParser(AmberC.AMBERParserBase):
                    onlyCaseSensitive=True,
                    stopOnFirstLine=False)
                    )
-                   #geometryMDSubMatcher
             ])
 
         ########################################
@@ -1008,19 +998,14 @@ class AMBERParser(AmberC.AMBERParserBase):
                     SM(name='SingleConfigurationCalculationWithSystemDescription',
                        startReStr=r"\s*4\.\s*RESULTS",
                        endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
-                       #repeats=True,
                        forwardMatch=True,
-                       #sections=['section_single_configuration_calculation'],
                        subMatchers=[
                            # the actual section for a single configuration calculation starts here
                            SM(name='SingleConfigurationCalculation',
                               startReStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS\s*)",
-#                              endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
+                              #endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
                               repeats=True,
                               forwardMatch=True,
-                              #sections=['section_system', 'section_single_configuration_calculation'],
-                              #sections = ['section_method','section_single_configuration_calculation'],
-                              #sections=['section_single_configuration_calculation', 'section_system'],
                               sections=['section_single_configuration_calculation'],
                               subMatchers=[
                                   # MD
