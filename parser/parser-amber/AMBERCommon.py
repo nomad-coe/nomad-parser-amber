@@ -132,12 +132,6 @@ class AMBERParserBase(object):
         self.extraDict = get_nameListDict('extra')
         self.parserInfo = PARSER_INFO_DEFAULT.copy()
         self.metaInfoEnv = get_metaInfo(self)
-#        self.cachingLevelForMetaName = {
-#                               'x_amber_trajectory_file_detect': CachingLevel.Cache,
-#                               'x_amber_geometry_optimization_cdetect': CachingLevel.Cache,
-#                               'x_amber_section_MD_detect': CachingLevel.Ignore,
-#                               'x_amber_single_configuration_calculation_detect': CachingLevel.Cache,
-#                              }
         self.coverageIgnoreList = [
             # ignore empty lines
             r"\s*",

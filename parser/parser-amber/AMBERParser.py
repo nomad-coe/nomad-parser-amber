@@ -207,7 +207,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         if self.topology:
             self.topologyTable, self.topologyBonds = self.topology.to_dataframe()
             self.topologyDict = self.topologyTable.to_dict(orient='list')
-        #print(self.atompositions)
         self.topologyFormat = topoformat
         self.trajectoryFormat = trajformat
         #if trajformat or topoformat:
@@ -397,9 +396,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         # write trajectory
         #valuesDict = section.simpleValues
 
-#        samplingGIndex = backend.openSection("section_sampling_method")
-#        backend.addValue("sampling_method", sampling_method)
-#        backend.closeSection("section_sampling_method", samplingGIndex)
         frameSequenceGIndex = backend.openSection("section_frame_sequence")
         self.metaStorage.updateBackend(backend, 
                 startsection=['section_frame_sequence'],
@@ -436,7 +432,6 @@ class AMBERParser(AmberC.AMBERParserBase):
                     if self.fileDict[k].activeInfo:
                         self.fileDict[k].value = v[-1]
                         atLeastOneFileExist = True
-                        #backend.superBackend.addValue(k, v[-1])
         if atLeastOneFileExist:
             self.initializeFileHandlers()
 
@@ -457,7 +452,6 @@ class AMBERParser(AmberC.AMBERParserBase):
         """Trigger called when section_method is closed.
         """
         # input method
-        #if gIndex == self.inputMethodIndex:
         pass
 
     def onOpen_section_sampling_method(self, backend, gIndex, section):
@@ -628,11 +622,9 @@ class AMBERParser(AmberC.AMBERParserBase):
             'dictionary' : section_singlecalc_Dict
             }
         self.metaStorage.update(updateDict)
-        #self.secSingleGIndex = backend.openSection("section_single_configuration_calculation")
         self.metaStorage.updateBackend(backend.superBackend, 
                 startsection=['section_single_configuration_calculation'],
                 autoopenclose=False)
-        #backend.closeSection("section_single_configuration_calculation", self.secSingleGIndex)
         self.onOpen_section_system(backend, None, None)
         self.onClose_section_system(backend, None, None)
         backend.superBackend.closeSection("section_single_configuration_calculation", self.secSingleGIndex)
@@ -689,7 +681,6 @@ class AMBERParser(AmberC.AMBERParserBase):
                 newLine = parser.fIn.readline()
                 lastLine = ' = '.join([ "%s" % str(line) for line in zip(lastLine, newLine)])
             for cName, key in getDict_MetaStrInDict(matchNameDict).items():
-                #key = metaNameStart + cName.lower().replace(" ", "").replace("-", "")
                 reDict={key:value for value in 
                         re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?:'|\")?(?P<%s>[\-+0-9.a-zA-Z:]+)(?:'|\")?\s*,?" 
                         % (cName, cName, cName, key)).findall(lastLine)}
@@ -705,13 +696,10 @@ class AMBERParser(AmberC.AMBERParserBase):
                             else:
                                 matchNameDict[k].value=v
                                 matchNameDict[k].activeInfo=True
-                                #parser.backend.addValue(k, v)
             return False
 
     def adHoc_read_namelist_stop_parsing(self, parser, stopOnMatchStr, quitOnMatchStr, 
             metaNameStart, matchNameList, matchNameDict, onlyCaseSensitive, stopOnFirstLine):
-#        currentContext = parser.context[len(parser.context) - 1]
-#        currentMatcherId = currentContext.compiledMatcher.matcher.index.
         lastLine = parser.fIn.fInLine
         self.firstLine = 0
         # Check the captured line has Fortran namelist variables and store them.
@@ -726,10 +714,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                 matchNameDict, onlyCaseSensitive, 
                 stopOnFirstLine) is not True:
             while True:
-#                lastLine = parser.fIn.readline()
                 lastLine = self.peekline(parser)
-#                self.lastfInLine = lastLine
-#                self.lastfInMatcher = currentMatcherId
                 self.firstLine += 1
                 if not lastLine:
                     break
@@ -950,21 +935,6 @@ class AMBERParser(AmberC.AMBERParserBase):
 #            subFlags=SM.SubFlags.Unordered,
             subMatchers=mdoutKeywordsSimpleMatchers
             )
-
-
-    ########################################
-    # subMatcher for MD geometry that was used for the finished SCF cycle (see word 'preceding' in the description)
-    #geometryMDSubMatcher = SM (name = 'GeometryMD',
-    #        startReStr = r"\s*(?:A|Final a)tomic structure \(and velocities\) as used in the preceding time step:",
-    #    sections = ['section_system'],
-    #    subMatchers = [
-    #    SM (r"\s*x \[A\]\s*y \[A\]\s*z \[A\]\s*Atom"),
-    #    SM (startReStr = r"\s*atom\s+(?P<x_fhi_aims_geometry_atom_positions_x__angstrom>[-+0-9.]+)\s+(?P<x_fhi_aims_geometry_atom_positions_y__angstrom>[-+0-9.]+)\s+(?P<x_fhi_aims_geometry_atom_positions_z__angstrom>[-+0-9.]+)\s+(?P<x_fhi_aims_geometry_atom_labels>[a-zA-Z]+)",
-    #        repeats = True,
-    #        subMatchers = [
-    #        SM (r"\s*velocity\s+(?P<x_fhi_aims_geometry_atom_velocity_x__angstrom_ps_1>[-+0-9.]+)\s+(?P<x_fhi_aims_geometry_atom_velocity_y__angstrom_ps_1>[-+0-9.]+)\s+(?P<x_fhi_aims_geometry_atom_velocity_z__angstrom_ps_1>[-+0-9.]+)")
-    #        ])
-    #    ])
 
         ########################################
         # submatcher for MD

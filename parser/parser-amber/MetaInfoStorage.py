@@ -249,12 +249,6 @@ class Container(object):
         elif "subfunction" in item:
             subfunc = item.subfunction
             storeValue, updateValue, item = subfunc(item)
-            #subfunc = item.functionbase
-            #storeValue, updateValue, item = eval(item.subfunction % item, 
-            #        globals(), 
-            #        #subfunc.__class__().__dict__
-            #        {k: getattr(subfunc.__class__(), k) for k in dir(subfunc.__class__())}
-            #        )
         elif "value" in item:
             updateValue = item['value']
         if "postfunction" in item:
@@ -655,9 +649,6 @@ class JsonMetaInfo(object):
                 if itemname not in nameList:
                     nameList.append(itemname)
         for name in searchList:
-            #if (('section' in name or 
-            #     'settings' in name or 
-            #     'configuration_core' in name) and 
             if (set([name]) not in set(nameList) and 
                 self.isparent(name)):
                 siblings.append(name)
@@ -728,7 +719,7 @@ if __name__ == "__main__":
     for container in run.Containers:
         if 'section_topology' in container.Name:
             select = container
-    #select.Color = 4
+    select.Color = 4
     #select.PrintOnlyActive = 1
     run.PrintOnlyNames = 1
     print(run)
