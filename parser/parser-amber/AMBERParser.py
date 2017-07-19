@@ -56,8 +56,8 @@ class AMBERParser(AmberC.AMBERParserBase):
                                'x_amber_geometry_optimization_cdetect': CachingLevel.Cache,
                                'x_amber_mdin_finline': CachingLevel.Ignore,
                                'x_amber_mdin_wt': CachingLevel.Ignore,
+                               'x_amber_section_input_output_files': CachingLevel.Ignore,
                                'x_amber_single_configuration_calculation_detect': CachingLevel.Cache,
-                               #'x_amber_single_configuration_calculation': CachingLevel.Cache,
                               }
         for name in self.metaInfoEnv.infoKinds:
             metaInfo = self.metaInfoEnv.infoKinds[name]
@@ -82,6 +82,9 @@ class AMBERParser(AmberC.AMBERParserBase):
                 or name.startswith('section_single_configuration_calculation')
                ):
                 self.cachingLevelForMetaName[name] = CachingLevel.Cache
+            if name in self.extraDict.keys():
+                self.cachingLevelForMetaName[name] = CachingLevel.Ignore
+
 
     def initialize_values(self):
         """Initializes the values of certain variables.
@@ -230,7 +233,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             return False, None, itemdict
 
     def topology_system_name(self, itemdict):
-        """ Function to generate data for atom_to_molecule 
+        """ Function to generate data for system_name
         """
         system_name = self.fName.split('.')[-1]
         if self.topology:
@@ -244,15 +247,17 @@ class AMBERParser(AmberC.AMBERParserBase):
             residueList = self.topologyDict["resSeq"]
             atomIndex = np.arange(len(residueList))
             atom_to_residue = np.zeros((len(residueList), 2), dtype=int)
-            atom_to_residue[:,0] = atomIndex
-            atom_to_residue[:,1] = residueList
+            atom_to_residue[:,0] = atomIndex+1
+            atom_to_residue[:,1] = np.array(residueList)+1
             return False, atom_to_residue, itemdict
         else:
             return False, None, itemdict
 
-    def topology_atom_type_and_interactions(self):
+    def topology_atom_type_and_interactions(self, backend, gIndex):
         """ Function to generate data for atom_to_molecule 
         """
+        sO = open_section
+        supB = backend.superBackend
         if self.topology:
             atom_type_list=list(set(self.topologyDict["name"]))
             atom_type_dict = {}
@@ -261,7 +266,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             radiusDict = {}
             for ielm in range(len(atom_type_list)):
                 elm = atom_type_list[ielm]
-                atom_type_dict.update({elm : ielm})
+                atom_type_dict.update({elm : ielm+1})
                 for atom in self.topology.atoms:
                     if elm == atom.name:
                         massesDict.update({atom.name : atom.element.mass})
@@ -272,62 +277,67 @@ class AMBERParser(AmberC.AMBERParserBase):
             elementList = list(elementDict.values())
             radiusList = list(radiusDict.values())
 
+            interNum = 0
             interDict = {}
             interTypeDict = {}
-            for ielm in range(len(atom_type_list)):
-                elm = atom_type_list[ielm]
-                bondList = []
-                typeList = []
-                bondid = 0
-                for bond in self.topology.bonds:
-                    molname1, molatom1 = str(bond[0]).split('-')
-                    molname2, molatom2 = str(bond[1]).split('-')
-                    if (elm == str(molatom1) or elm == str(molatom2)):
-                        bondList.append(list(self.topologyBonds[bondid]))
-                        typeList.append(list([
-                            atom_type_dict[str(molatom1)],
-                            atom_type_dict[str(molatom2)]
-                            ]))
-                            #str(molatom1)+':'+str(ielm+1), 
-                            #str(molatom2)+':'+str(ielm+1)
-                            #]))
-                        interDict.update({elm : bondList})
-                        interTypeDict.update({elm : typeList})
-                    bondid += 1
+            for ielm in range(len(atom_type_list)-1):
+                for jelm in range(ielm+1, len(atom_type_list)):
+                    aelm = atom_type_list[ielm]
+                    belm = atom_type_list[jelm]
+                    bondList = []
+                    typeList = []
+                    bondid = 0
+                    noninter = True
+                    for bond in self.topology.bonds:
+                        molname1, molatom1 = str(bond[0]).split('-')
+                        molname2, molatom2 = str(bond[1]).split('-')
+                        if((aelm == str(molatom1) and belm == str(molatom2)) or 
+                            (aelm == str(molatom2) and belm == str(molatom1))):
+                            bondList.append(list(self.topologyBonds[bondid]))
+                            interDict.update({interNum : bondList})
+                            if noninter:
+                                noninter = False
+                                typeList.extend(list([
+                                    atom_type_dict[aelm],
+                                    atom_type_dict[belm]
+                                    ]))
+                                interTypeDict.update({interNum : typeList})
+                                interNum += 1
+                        bondid += 1
 
             for elm in range(len(atom_type_list)):
-                with self.secOpen(self.superP, 'section_atom_type'):
+                with sO(supB, 'section_atom_type'):
                     ### !!! ----------------------------------------------- !!!
                     ### !!! Need to check the definition of atom type name. 
                     ### !!! Which one is better? C1, CA, C:1 or C !!!
                     ### !!! ----------------------------------------------- !!!
                     # Atom name? Atom element?
-                    self.superP.addValue('atom_type_name', str(atom_type_list[elm]) + ':' + str(elm+1))    
+                    supB.addValue('atom_type_name', str(atom_type_list[elm]) + ':' + str(elm+1))    
                     # Atomic mass
-                    self.superP.addValue('atom_type_mass', massesList[elm])             
+                    supB.addValue('atom_type_mass', massesList[elm])             
                     # Atomic element/symbol
-                    self.superP.addValue('x_amber_atom_type_element', elementList[elm]) 
+                    supB.addValue('x_amber_atom_type_element', elementList[elm]) 
                     # Atomic van der Waals radius
-                    self.superP.addValue('x_amber_atom_type_radius', radiusList[elm])   
+                    supB.addValue('x_amber_atom_type_radius', radiusList[elm])   
                     # Atomic charge
                     #self.superP.addValue('atom_type_charge', atom_charge)              
                     pass
 
-            for elm in atom_type_list:
-                with self.secOpen(self.superP, 'section_interaction'):
+            for inum in range(interNum):
+                with sO(supB, 'section_interaction'):
                     # atom indexes of bound pairs for a specific atom type
-                    self.superP.addArrayValues('interaction_atoms', np.asarray(interDict[elm]))     
+                    supB.addArrayValues('interaction_atoms', np.asarray(interDict[inum]))     
                     # number of bonds for this type
-                    self.superP.addValue('number_of_interactions', len(interDict[elm]))             
+                    supB.addValue('number_of_interactions', len(interDict[inum]))             
                     # number of atoms involved (2 for covalent bonds)
-                    self.superP.addValue('number_of_atoms_per_interaction', len(interDict[elm][0])) 
+                    supB.addValue('number_of_atoms_per_interaction', len(interDict[inum][0])) 
                 
                     #if bondFunctional:
                     #    self.superP.addValue('interaction_kind', bondFunctional)  # functional form of the interaction
 
                     # this points to the relative section_atom_type
-                    self.superP.addArrayValues('x_amber_interaction_atom_to_atom_type_ref', 
-                            np.asarray(interTypeDict[elm]))  
+                    supB.addArrayValues('x_amber_interaction_atom_to_atom_type_ref', 
+                            np.asarray(interTypeDict[inum]))  
                     # interaction parameters for the functional
                     #self.superP.addValue('interaction_parameters', bondParameters)  
 
@@ -385,25 +395,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         The scala part will check the validity nevertheless. (Good to know :)
         """
         # write trajectory
-        valuesDict = section.simpleValues
-        location = 'verbatim writeout of mdin',
-        # write settings of aims output from the parsed control.in
-        for k,v in section.simpleValues.items():
-            if (k.startswith('x_amber_mdin_') or 
-                k.startswith('x_amber_mdout_') or
-                k.startswith('x_amber_parm_')):
-                backend.superBackend.addValue(k, v[-1])
-        # reset all variables
-        self.initialize_values()
-#        if self.MD:
-
-#       sampling_method = "molecular_dynamics"
-
-##        elif len(self.singleConfCalcs) > 1: 
-#            pass # to do
-#        else:
-#            return
-        # check for geometry optimization convergence
+        #valuesDict = section.simpleValues
 
 #        samplingGIndex = backend.openSection("section_sampling_method")
 #        backend.addValue("sampling_method", sampling_method)
@@ -415,6 +407,9 @@ class AMBERParser(AmberC.AMBERParserBase):
         backend.addValue("frame_sequence_to_sampling_ref", self.secSamplingGIndex)
         backend.addArrayValues("frame_sequence_local_frames_ref", np.asarray(self.singleConfCalcs))
         backend.closeSection("section_frame_sequence", frameSequenceGIndex)
+
+        # reset all variables
+        self.initialize_values()
 
     def onClose_x_amber_section_input_output_files(self, backend, gIndex, section):
         """Trigger called when x_amber_section_input_output_files is closed.
@@ -510,7 +505,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         self.metaStorage.updateBackend(backend.superBackend, 
                 startsection=['section_topology'],
                 autoopenclose=False)
-        self.topology_atom_type_and_interactions()
+        self.topology_atom_type_and_interactions(backend, gIndex)
 
         if (gIndex is None or gIndex == -1 or gIndex == "-1"):
             backend.superBackend.closeSection("section_topology", self.secTopologyGIndex)

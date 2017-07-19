@@ -261,27 +261,64 @@ class Container(object):
             postfunc = item.postfunction
             storeValue, updateValue, item = postfunc(item)
         if "valtype" in item:
-            if(isinstance(updateValue, list) or isinstance(updateValue, tuple)):
-                newUpdateValue = [eval(
-                    item["valtype"]+"("+str(ival)+")"
-                    ) for ival in updateValue]
-            elif isinstance(updateValue, str):
-                newUpdateValue = eval(item["valtype"]+"("+str(updateValue)+")")
-            else:
-                newUpdateValue = updateValue
+            if updateValue is not None:
+                updateValue = self.convertToNumber(updateValue, item["valtype"])
         if("unit" in item and "unitdict" in item):
-            if(isinstance(updateValue, list) or isinstance(updateValue, tuple)):
-                updateValue = [self.unitConverter(
-                    ival, item["unit"], item["unitdict"]
-                    ) for ival in updateValue]
-            elif(isinstance(updateValue, str) and float(updateValue)):
-                updateValue = float(updateValue)
-                updateValue = self.unitConverter(
-                    updateValue, item["unit"], item["unitdict"])
-            else:
-                updateValue = self.unitConverter(
-                    updateValue, item["unit"], item["unitdict"])
+            if updateValue is not None:
+                updateValue = self.convertUnits(updateValue, item["unit"], item["unitdict"])
         return storeValue, updateValue, localdict
+
+    def convertToNumber(self, updateValue, valtype):
+        if(isinstance(updateValue, list) or isinstance(updateValue, tuple)):
+            newUpdateValue = [eval(
+                valtype+"("+str(ival)+")"
+                ) for ival in updateValue]
+        elif isinstance(updateValue, np.ndarray):
+            newUpdateValue = np.asarray([eval(
+                valtype+"("+str(ival)+")"
+                ) for ival in updateValue])
+        elif self.is_number(updateValue):
+            newUpdateValue = eval(valtype+"("+str(updateValue)+")")
+        else:
+            # I hope you know what you are doing
+            newUpdateValue = updateValue
+        return newUpdateValue
+    
+    def convertUnits(self, updateValue, unit, unitdict):
+        if(isinstance(updateValue, list) or isinstance(updateValue, tuple)):
+            updateValue = [self.unitConverter(
+                ival, unit, unitdict
+                ) for ival in updateValue]
+        elif isinstance(updateValue, np.ndarray):
+            updateValue = np.asarray([self.unitConverter(
+                ival, unit, unitdict
+                ) for ival in updateValue])
+        elif self.is_number(updateValue):
+            updateValue = self.convertToNumber(updateValue, "float")
+            updateValue = self.unitConverter(
+                updateValue, unit, unitdict)
+        else:
+            # I hope you know what you are doing
+            updateValue = self.unitConverter(
+                updateValue, unit, unitdict)
+
+    def unitConverter(self, updateValue, unit, unitdict):
+        """ Unit converter using definitions of units explicitly
+
+            The unit names are converted to numbers and the resulting
+            expression will be evaluated by python.
+            Ex.: unit = 'electron-volt/Angstrom^2' 
+                 will be converted to
+                 unit = '1.602176565e-19*1.0/1.0e-10**2'
+                 factor = eval(unit) = 16.02176565 Joule/meter^2
+                 in SI units and the result will be calculated as follows:
+                 output_value = input_value * factor
+        """
+        newunit = unit.lower()
+        newunit = newunit.replace('-','*').replace(' ', '*').replace('^', "**")
+        for key,value in unitdict.items():
+            newunit = newunit.replace(str(key), str(value))
+        return float(updateValue) * float(eval(newunit))
 
     def checkTestsDicts(self, item, localdict):
         for depdict in item["depends"]:
@@ -341,24 +378,6 @@ class Container(object):
                             checkval = attrdict[deptest[0]]
                         return checkval, localdict
         return None, localdict
-
-    def unitConverter(self, updateValue, unit, unitdict):
-        """ Unit converter using definitions of units explicitly
-
-            The unit names are converted to numbers and the resulting
-            expression will be evaluated by python.
-            Ex.: unit = 'electron-volt/Angstrom^2' 
-                 will be converted to
-                 unit = '1.602176565e-19*1.0/1.0e-10**2'
-                 factor = eval(unit) = 16.02176565 Joule/meter^2
-                 in SI units and the result will be calculated as follows:
-                 output_value = input_value * factor
-        """
-        newunit = unit.lower()
-        newunit = newunit.replace('-','*').replace(' ', '*').replace('^', "**")
-        for key,value in unitdict.items():
-            newunit = newunit.replace(str(key), str(value))
-        return float(updateValue) * float(eval(newunit))
 
     def findNameInLookupDict(self, metaname, lookupdict):
         for item in lookupdict:
@@ -429,6 +448,13 @@ class Container(object):
                 if "unitconverter" in itemv:
                     newValue = itemv["unitconverter"](self, itemv)
                     self.Storage.__dict__[itemk["val"]] = newvalue
+
+    def is_number(self, val):
+        try:
+            float(val)
+            return True
+        except ValueError:
+            return False
 
     def __str__(self, caller=None, decorate='', color=None, printactive=None, onlynames=None):
         string = ''

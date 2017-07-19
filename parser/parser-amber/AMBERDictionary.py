@@ -163,6 +163,28 @@ class MapDictionary(dict):
         return [val.metaName for val in self.__dict__.values()]
 
 def get_unitDict(keyname):
+    """ Unit dictionary for convertions
+
+        Unit names will be converted to values.
+        When defining units in translator dictionary, 
+        the unit names in the dictionary should be used.
+        The unit convertion values are written for SI units.
+        If you would like to change it, just add another key 
+        to the dictionary and change the key at parser base.
+        Usage:
+           Natively support python language in definitions. 
+           You can use any python math operator and function. 
+           Moreover, you can use space or - for multiplication 
+           and ^ for power of values. 
+        Example:
+            kilogram/meter^2 can be written as
+            kilo-gram/meter^2 or kilo-gram/meter**2
+            and will be calculated as
+            kilo*gram/meter**2
+
+        For a quick check for AMBER units please see: 
+        http://ambermd.org/Questions/units.html
+    """
     unitDict = {
         "si" : {
             "meter"          : "1.0",
@@ -184,11 +206,10 @@ def get_unitDict(keyname):
             "atto"           : "1.0e-18",
             "erg"            : "1.0e-7",
             "dyne"           : "1.0e-5",
-            "barye"          : "1.0e-1",
             "bar"            : "1.0e-1",
             "angstrom"       : "1.0e-10",
             "kcal"           : "4184.096739614824",
-            "mole"           : "0.602213737699784e24",
+            "mol"           : "0.602213737699784e24",
             "atmosphere"     : "1.01325e5",
             "electron"       : "1.602176565e-19",
             "atomicmassunit" : "1.66054e-27",
@@ -712,6 +733,7 @@ def get_updateDictionary(self, defname):
                  'value' : 'pres0'} 
                 ],
             lookupdict=self.cntrlDict,
+            valtype='float',
             #autoSections=True,
             activeSections=['settings_barostat']
             ),
@@ -722,6 +744,7 @@ def get_updateDictionary(self, defname):
                  'value' : 'taup'} 
                 ],
             lookupdict=self.cntrlDict,
+            valtype='float',
             #autoSections=True,
             activeSections=['settings_barostat']
             ),
@@ -742,12 +765,14 @@ def get_updateDictionary(self, defname):
                  'value' : 'dt'}
                 ],
             lookupdict=self.cntrlDict,
+            valtype='float',
             #autoSections=True,
             activeSections=['settings_integrator']
             ),
         'x_amber_number_of_steps_requested' : MetaInfoMap(startpage,
             depends=[{'value' : 'nstlim'}],
             lookupdict=self.cntrlDict,
+            valtype='int',
             #autoSections=True,
             activeSections=['settings_integrator']
             ),
@@ -774,6 +799,7 @@ def get_updateDictionary(self, defname):
                  'value' : 'temp0'}
                 ],
             lookupdict=self.cntrlDict,
+            valtype='float',
             #autoSections=True,
             activeSections=['settings_thermostat']
             ),
@@ -789,6 +815,7 @@ def get_updateDictionary(self, defname):
                  'value' : 'gamma_ln'}, 
                 ],
             lookupdict=self.cntrlDict,
+            valtype='float',
             #autoSections=True,
             activeSections=['settings_thermostat']
             ),
@@ -798,6 +825,7 @@ def get_updateDictionary(self, defname):
                  'value' : 'gamma_ln'}
                 ],
             lookupdict=self.cntrlDict,
+            valtype='float',
             #autoSections=True,
             activeSections=['settings_thermostat']
             ),
@@ -830,23 +858,25 @@ def get_updateDictionary(self, defname):
         'energy_current' : MetaInfoMap(startpage),
         'energy_electrostatic' : MetaInfoMap(startpage,
             depends=[{'value' : 'EELEC'}],
+            valtype='float',
             unitdict=self.unitDict,
-            unit='electron-volt',
+            unit='kcal/mol',
             lookupdict=self.mddataDict
             ),
         'energy_free_per_atom' : MetaInfoMap(startpage),
         'energy_free' : MetaInfoMap(startpage),
-        'energy_method_current' : MetaInfoMap(startpage,
-            depends=[{'assign' : 'Force Field'}],
-            lookupdict=self.mddataDict
-            ),
+        #'energy_method_current' : MetaInfoMap(startpage,
+        #    depends=[{'assign' : 'Force Field'}],
+        #    lookupdict=self.mddataDict
+        #    ),
         'energy_T0_per_atom' : MetaInfoMap(startpage),
         'energy_total_T0_per_atom' : MetaInfoMap(startpage),
         'energy_total_T0' : MetaInfoMap(startpage),
         'energy_total' : MetaInfoMap(startpage,
             depends=[{'value' : 'Etot'}],
+            valtype='float',
             unitdict=self.unitDict,
-            unit='electron-volt',
+            unit='kcal/mol',
             lookupdict=self.mddataDict
             ),
         'hessian_matrix' : MetaInfoMap(startpage),
@@ -869,8 +899,9 @@ def get_updateDictionary(self, defname):
         'energy_van_der_Waals_value' : MetaInfoMap(startpage,
             depends=[{'value' : 'VDWAALS'}],
             lookupdict=self.mddataDict,
+            valtype='float',
             unitdict=self.unitDict,
-            unit='electron-volt',
+            unit='kcal/mol',
             #autoSections=True,
             activeSections=['section_energy_van_der_Waals']
             ),
@@ -890,7 +921,7 @@ def get_updateDictionary(self, defname):
             depends=[{'store' : 'RESTRAINT'}],
             valtype='float',
             unitdict=self.unitDict,
-            unit='electron-volt',
+            unit='kcal/mol',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_continuation_kind' : MetaInfoMap(startpage),
@@ -905,7 +936,7 @@ def get_updateDictionary(self, defname):
             depends=[{'store' : 'EKtot'}],
             valtype='float',
             unitdict=self.unitDict,
-            unit='electron-volt',
+            unit='kcal/mol',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_local_frames_ref' : MetaInfoMap(startpage),
@@ -919,7 +950,7 @@ def get_updateDictionary(self, defname):
             depends=[{'store' : 'EPtot'}],
             valtype='float',
             unitdict=self.unitDict,
-            unit='electron-volt',
+            unit='kcal/mol',
             lookupdict=self.mddataDict
             ),
         'frame_sequence_pressure_frames' : MetaInfoMap(startpage,
@@ -1037,6 +1068,7 @@ def get_updateDictionary(self, defname):
         'local_rotations' : MetaInfoMap(startpage),
         'number_of_atoms' : MetaInfoMap(startpage,
             depends=[{'value' : 'NATOM'}],
+            valtype='int',
             lookupdict=self.parmDict
             ),
         'number_of_sites' : MetaInfoMap(startpage),
@@ -1067,6 +1099,7 @@ def get_updateDictionary(self, defname):
     configuration_core = {
         'number_of_electrons' : MetaInfoMap(startpage,
             value=0,
+            valtype='float',
             ),
         'atom_labels' : MetaInfoMap(startpage,
             #subfunction=self.system_atom_labels()
@@ -1116,13 +1149,15 @@ def get_updateDictionary(self, defname):
         'molecule_to_molecule_type_map' : MetaInfoMap(startpage),
         'number_of_topology_atoms' : MetaInfoMap(startpage,
             depends=[{'value' : 'NATOM'}],
+            valtype='int',
             lookupdict=self.parmDict
             ),
         'number_of_topology_molecules' : MetaInfoMap(startpage,
-            subfunction=self.topology_num_topo_mol
+            subfunction=self.topology_num_topo_mol,
+            valtype='int',
             ),
         'topology_force_field_name' : MetaInfoMap(startpage,
-            value='Amber Force Field',
+            value='AMBER Force Field',
             )
         }
 
