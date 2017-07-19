@@ -304,10 +304,11 @@ class Container(object):
 
             The unit names are converted to numbers and the resulting
             expression will be evaluated by python.
-            Ex.: unit = 'electron-volt/Angstrom^2' 
+            Ex.: unit = 'electron-volt/Angstrom^3' 
                  will be converted to
-                 unit = '1.602176565e-19*1.0/1.0e-10**2'
-                 factor = eval(unit) = 16.02176565 Joule/meter^2
+                 unit = '1.602176565e-19*1.0/1.0e-10**3'
+                 factor = eval(unit) = 160.2176565e+9 Joule/meter^3 (Pascal)
+                 160.2176565e+9 Pascal = 160.2176565 GPa
                  in SI units and the result will be calculated as follows:
                  output_value = input_value * factor
         """
