@@ -27,9 +27,10 @@ object AmberParser extends SimpleExternalParserGenerator(
     "${mainFilePath}"),
   resList = Seq(
     "parser-amber/AMBERParser.py",
+    "parser-amber/AMBERDictionary.py",
     "parser-amber/AMBERCommon.py",
-    "parser-amber/AMBERmdinParser.py",
-    "parser-amber/AMBERmdcrdParser.py",
+    "parser-amber/MetaInfoStorage.py",
+    "parser-amber/trajectory_reader.py",
     "parser-amber/setup_paths.py",
     "nomad_meta_info/public.nomadmetainfo.json",
     "nomad_meta_info/common.nomadmetainfo.json",
