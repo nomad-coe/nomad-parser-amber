@@ -23,8 +23,6 @@ import sys
 
 LOGGER = logging.getLogger("nomad.AMBERParser")
       
-#PRINTABLE = re.compile(r"\W+")
-
 @contextmanager
 def open_section(parser, name):
     gid = parser.openSection(name)
