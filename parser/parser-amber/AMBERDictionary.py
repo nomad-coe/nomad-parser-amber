@@ -1013,46 +1013,46 @@ def get_updateDictionary(self, defname):
             value=self.minConverged
             ),
         'number_of_conserved_quantity_evaluations_in_sequence' : MetaInfoMap(startpage,
-            value=len([
-                item for item in self.metaStorage.fetchAttr(
+            value=(lambda x: np.array(x).flatten().shape[0] if x is not None else None)(
+                self.metaStorage.fetchAttr(
                     {'frame_sequence_conserved_quantity_frames' : None}
-                    )['frame_sequence_conserved_quantity_frames']
-                ])
+                    )['frame_sequence_conserved_quantity_frames']['val']
+                )
             ),
         'number_of_frames_in_sequence' : MetaInfoMap(startpage,
-            value=len([
-                item for item in self.metaStorage.fetchAttr(
+            value=(lambda x: np.array(x).flatten().shape[0] if x is not None else None)(
+                self.metaStorage.fetchAttr(
                     {'frame_sequence_potential_energy_frames' : None}
-                    )['frame_sequence_potential_energy_frames']
-                ])
+                    )['frame_sequence_potential_energy_frames']['val']
+                )
             ),
         'number_of_kinetic_energies_in_sequence' : MetaInfoMap(startpage,
-            value=len([
-                item for item in self.metaStorage.fetchAttr(
+            value=(lambda x: np.array(x).flatten().shape[0] if x is not None else None)(
+                self.metaStorage.fetchAttr(
                     {'frame_sequence_kinetic_energy_frames' : None}
-                    )['frame_sequence_kinetic_energy_frames']
-                ])
+                    )['frame_sequence_kinetic_energy_frames']['val']
+                )
             ),
         'number_of_potential_energies_in_sequence' : MetaInfoMap(startpage,
-            value=len([
-                item for item in self.metaStorage.fetchAttr(
+            value=(lambda x: np.array(x).flatten().shape[0] if x is not None else None)(
+                self.metaStorage.fetchAttr(
                     {'frame_sequence_potential_energy_frames' : None}
-                    )['frame_sequence_potential_energy_frames']
-                ])
+                    )['frame_sequence_potential_energy_frames']['val']
+                )
             ),
         'number_of_pressure_evaluations_in_sequence' : MetaInfoMap(startpage,
-            value=len([
-                item for item in self.metaStorage.fetchAttr(
-                    {'frame_sequence_pressure_frames' : None}
-                    )['frame_sequence_pressure_frames']
-                ])
+            value=(lambda x: np.array(x).flatten().shape[0] if x is not None else None)(
+                self.metaStorage.fetchAttr(
+                {'frame_sequence_pressure_frames' : None}
+                )['frame_sequence_pressure_frames']['val']
+                )
             ),
         'number_of_temperatures_in_sequence' : MetaInfoMap(startpage,
-            value=len([
-                item for item in self.metaStorage.fetchAttr(
+            value=(lambda x: np.array(x).flatten().shape[0] if x is not None else None)(
+                self.metaStorage.fetchAttr(
                     {'frame_sequence_temperature_frames' : None}
-                    )['frame_sequence_temperature_frames']
-                ])
+                    )['frame_sequence_temperature_frames']['val']
+                )
             ),
         #'previous_sequence_ref' : MetaInfoMap(startpage)
         }

@@ -16,6 +16,8 @@ PUBLIC_META_INFO_PATH = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 
     "../../../../nomad-meta-info/meta_info/nomad_meta_info/public.nomadmetainfo.json"))
 
+NOTEXCEPT = re.compile(r'[^a-cf-zA-CF-Z!\.?,]')
+
 class Container(object):
     """The container class for nested data storage
     """
@@ -316,6 +318,7 @@ class Container(object):
         newunit = newunit.replace('-','*').replace(' ', '*').replace('^', "**")
         for key,value in unitdict.items():
             newunit = newunit.replace(str(key), str(value))
+        NOTEXCEPT.sub('', newunit)
         return float(eval(newunit))
 
     def checkTestsDicts(self, item, localdict):
@@ -393,6 +396,8 @@ class Container(object):
                     backend.addArrayValues(itemk, value)
                 elif isinstance(value, (list, tuple)):
                     backend.addArrayValues(itemk, np.asarray(value))
+                elif value is None:
+                    pass
                 else:
                     backend.addValue(itemk, value)
 
