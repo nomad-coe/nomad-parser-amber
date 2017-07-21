@@ -47,6 +47,7 @@ class TrajectoryReader(object):
     def __init__(self):
         self.trajfile = None # File name of the trajectory file with path if needed
         self.topofile = None # File name of the topology file with path if needed
+        self.topo_n_atoms = None # Number of atoms at topology file
         self.trajformat = None # Format type of trajectory file
         self.topoformat = None # Format type of topology file
         self.trajhandler = None # The object parsing the trajectory file
@@ -55,7 +56,7 @@ class TrajectoryReader(object):
         self.topohandler = None # The object parsing the topology file
         self.trajcode = None # To explicitly define the parsing library (MDTraj/ASE) for trajectory files
         self.topocode = None # To explicitly define the parsing library (MDTraj/ASE) for topology files
-        self.eadfirst = False
+        self.readfirst = False
         self.user_formats = {
             "cif":    {"Crystallographic Information File", self.custom_iread}
         }
@@ -68,13 +69,15 @@ class TrajectoryReader(object):
             if self.topofile:
                 self.check_topology_format_support()
         if self.topohandler is None:
-            logger.error("The topology file format '{}' is not supported by TrajectoryReader.".format(self.topoformat))
+            #logger.warning("The topology file format '{}' is not supported by TrajectoryReader.".format(self.topoformat))
+            pass
 
         if self.trajhandler is None:
             self.check_trajectory_format_support()
             if self.trajhandler is None:
-                logger.error("The trajectory file format '{}' is not supported by TrajectoryReader.".format(self.trajformat))
-                logger.warning("ASE could not read the file '{}' with format '{}'. The contents might be malformed or wrong format used.".format(filename, file_format))
+                #logger.warning("The trajectory file format '{}' is not supported by TrajectoryReader.".format(self.trajformat))
+                #logger.warning("ASE could not read the file '{}' with format '{}'. The contents might be malformed or wrong format used.".format(filename, file_format))
+                pass
         return self.trajhandler
     
     def load_topology(self):
@@ -381,8 +384,14 @@ class TrajectoryReader(object):
                         yield pos
 
             else:
+                if self.topohandler is None:
+                    n_atoms_set=None
+                    if self.trajformat in ('.crd', '.mdcrd'):
+                        return
+                else:
+                    n_atoms_set=self.topohandler.n_atoms
                 try:
-                    with (lambda x: mdtraj_handler(x, n_atoms=self.topohandler.n_atoms)
+                    with (lambda x: mdtraj_handler(x, n_atoms=n_atoms_set)
                           if self.trajformat in ('.crd', '.mdcrd')
                           else mdtraj_handler(self.trajfile, mode="r"))(self.trajfile) as f:
                         empty = False

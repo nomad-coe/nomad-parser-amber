@@ -23,6 +23,8 @@ import sys
 
 LOGGER = logging.getLogger("nomad.AMBERParser")
       
+#PRINTABLE = re.compile(r"\W+")
+
 @contextmanager
 def open_section(parser, name):
     gid = parser.openSection(name)
@@ -546,8 +548,12 @@ class AMBERParser(AmberC.AMBERParserBase):
 
             # Read the next step at trajectory in advance
             # If iread returns None, it will be the last step
-            self.atompositions = self.trajectory.iread()
-            self.MDiter += 1
+            try:
+                self.atompositions = self.trajectory.iread()
+                self.MDiter += 1
+            except AttributeError:
+                self.atompositions = None
+                pass
 
             #if atom_vel:
             # need to transpose array since its shape is [number_of_atoms,3] in the metadata
