@@ -197,15 +197,18 @@ class TrajectoryReader(object):
         """Returns an iterator that goes through the given trajectory file one
         configuration at a time.
         """
-        iterator_object = iter(self.trajhandler)
-        try:
-            while True:
-                self.trajiter = next(iterator_object)
-                return self.trajiter
-        except StopIteration:
-            pass
-        finally:
-            del iterator_object
+        if self.trajhandler is not None:
+            iterator_object = iter(self.trajhandler)
+            try:
+                while True:
+                    self.trajiter = next(iterator_object)
+                    return self.trajiter
+            except StopIteration:
+                pass
+            finally:
+                del iterator_object
+        else:
+            return None
 
     def get_topology(self):
         """Returns an iterator that goes through the given trajectory file one
