@@ -612,8 +612,10 @@ class AMBERParser(AmberC.AMBERParserBase):
         self.metaStorage.updateBackend(backend.superBackend, 
                 startsection=['section_single_configuration_calculation'],
                 autoopenclose=False)
-        self.onOpen_section_system(backend, None, None)
-        self.onClose_section_system(backend, None, None)
+        if(self.topology is not None or 
+           self.atompositions is not None):
+            self.onOpen_section_system(backend, None, None)
+            self.onClose_section_system(backend, None, None)
         backend.superBackend.closeSection("section_single_configuration_calculation", self.secSingleGIndex)
 
         # write number of Minimization steps
