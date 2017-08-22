@@ -1,5 +1,5 @@
 # AMBER Parser
-## Version 0.0.2
+## Version 0.0.5
 Fixed bugs on test issues
 
 This is the parser for SANDER and PMEMD Molecular Dynamics codes in [AMBER](http://ambermd.org).
