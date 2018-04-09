@@ -13,6 +13,12 @@ import json
 import os
 import re
 
+PARSERNAME = "AMBER"
+PROGRAMNAME = "amber"
+PARSERVERSION = "0.0.3"
+PARSERMETANAME = PARSERNAME.lower()
+PARSERTAG = 'x_' + PARSERMETANAME
+
 PARSER_INFO_DEFAULT = {
         'name':'amber-parser', 
         'version': '0.0.1'
@@ -107,6 +113,7 @@ class AMBERParserBase(object):
     def __init__(self,cachingLevelForMetaName=None, coverageIgnoreList=None,
                  re_program_name=None):
         self.metaStorage = mStore.Container('section_run')
+        self.metaStorageRestrict = mStore.Container('section_restricted_uri')
         exclude_dict = { 
             'section_run' : [
             'section_processor_info', 
@@ -120,6 +127,7 @@ class AMBERParserBase(object):
                 META_INFO_PATH
                 )
         self.metaStorage.build(jsonmetadata, 'section_run', exclude_dict)
+        self.metaStorageRestrict.build(jsonmetadata, 'section_restricted_uri', exclude_dict)
         self.re_program_name = re_program_name
         self.unitDict = get_unitDict('si')
         self.fileDict = get_fileListDict()

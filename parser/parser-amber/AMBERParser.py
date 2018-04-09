@@ -8,6 +8,7 @@ from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import mainFunction, ParsingContext
 from nomadcore.simple_parser import SimpleMatcher as SM
 from AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary, getList_MetaStrInDict, getDict_MetaStrInDict
+from nomadcore.smart_parser.SmartParserDictionary import isMetaStrInDict
 from contextlib import contextmanager
 import AMBERCommon as AmberC
 import trajectory_reader as TrajRead
@@ -217,6 +218,20 @@ class AMBERParser(AmberC.AMBERParserBase):
         #    return True
         #else:
         #    return False
+
+    def parameter_file_name(self, itemdict):
+        """ Function to generate data for parameter files list
+        """
+        working_dir_name = os.path.dirname(os.path.abspath(self.fName))
+        parmmeta = isMetaStrInDict("PARM",self.fileDict)
+        filename = []
+        if parmmeta is not None:
+            if self.fileDict[parmmeta].value is not None:
+                filename.append(self.fileDict[parmmeta].value)
+        if filename:
+            return False, filename, itemdict
+        else:
+            return False, None, itemdict
 
     def topology_to_dictionary(self):
         """ This function generates self.topologyDict dictionary
@@ -478,7 +493,17 @@ class AMBERParser(AmberC.AMBERParserBase):
         self.metaStorage.updateBackend(backend, 
                 startsection=['section_sampling_method'],
                 autoopenclose=False)
-        #backend.closeSection("section_sampling_method", self.secSamplingGIndex)
+        self.secRestrictGIndex = backend.openSection("section_restricted_uri")
+        section_restrictions_Dict = get_updateDictionary(self, 'restrictions')
+        updateDict = {
+            'startSection' : [['section_restricted_uri']],
+            'dictionary' : section_restrictions_Dict
+            }
+        self.metaStorageRestrict.update(updateDict)
+        self.metaStorageRestrict.updateBackend(backend, 
+                startsection=['section_restricted_uri'],
+                autoopenclose=False)
+        backend.closeSection("section_restricted_uri", self.secRestrictGIndex)
     
     def onOpen_section_topology(self, backend, gIndex, section):
         # keep track of the latest topology description section
