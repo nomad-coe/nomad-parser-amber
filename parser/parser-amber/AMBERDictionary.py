@@ -935,7 +935,7 @@ def get_updateDictionary(self, defname):
             autoSections=True,
             activeSections=['section_restricted_uri']
             ),
-        'restricted_uri_issue_athority' : MetaInfoMap(startpage,
+        'restricted_uri_issue_authority' : MetaInfoMap(startpage,
             value='AMBER',
             autoSections=True,
             activeSections=['section_restricted_uri']
