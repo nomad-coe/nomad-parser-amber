@@ -60,7 +60,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         # dictionary of energy values, which are tracked between SCF iterations and written after convergence
         self.totalEnergyList = {
                                 'energy_electrostatic': None,
-                                'energy_total_T0_per_atom': None,
+                                'energy_total_t0_per_atom': None,
                                 'energy_free_per_atom': None,
                                }
         AmberC.AMBERParserBase.__init__(
@@ -433,8 +433,8 @@ class AMBERParser(AmberC.AMBERParserBase):
         self.metaStorage.updateBackend(backend, 
                 startsection=['section_frame_sequence'],
                 autoopenclose=False)
-        backend.addValue("frame_sequence_to_sampling_ref", self.secSamplingGIndex)
-        backend.addArrayValues("frame_sequence_local_frames_ref", np.asarray(self.singleConfCalcs))
+        backend.addValue("frame_sequence_to_sampling_method_ref", self.secSamplingGIndex)
+        backend.addArrayValues("frame_sequence_to_frames_ref", np.asarray(self.singleConfCalcs))
         backend.closeSection("section_frame_sequence", frameSequenceGIndex)
 
         # reset all variables
@@ -603,7 +603,7 @@ class AMBERParser(AmberC.AMBERParserBase):
 
     def onOpen_section_single_configuration_calculation(self, backend, gIndex, section):
         # write the references to section_method and section_system
-        backend.addValue('single_configuration_to_calculation_method_ref', self.secMethodGIndex)
+        backend.addValue('single_configuration_calculation_to_method_ref', self.secMethodGIndex)
         backend.addValue('single_configuration_calculation_to_system_ref', self.secSystemGIndex)
         self.singleConfCalcs.append(gIndex)
         self.secSingleGIndex = backend.superBackend.openSection("section_single_configuration_calculation")
@@ -630,16 +630,16 @@ class AMBERParser(AmberC.AMBERParserBase):
         section_singlevdw_Dict = get_updateDictionary(self, 'singlevdw')
         updateDictVDW = {
             'startSection' : [
-                ['section_energy_van_der_Waals']],
+                ['section_energy_van_der_waals']],
             'muteSections' : [['section_sampling_method']],
             'dictionary' : section_singlevdw_Dict
             }
-        self.secVDWGIndex = backend.superBackend.openSection("section_energy_van_der_Waals")
+        self.secVDWGIndex = backend.superBackend.openSection("section_energy_van_der_waals")
         self.metaStorage.update(updateDictVDW)
         self.metaStorage.updateBackend(backend.superBackend, 
-                startsection=['section_energy_van_der_Waals'],
+                startsection=['section_energy_van_der_waals'],
                 autoopenclose=False)
-        backend.superBackend.closeSection("section_energy_van_der_Waals", self.secVDWGIndex)
+        backend.superBackend.closeSection("section_energy_van_der_waals", self.secVDWGIndex)
         section_singlecalc_Dict = get_updateDictionary(self, 'singleconfcalc')
         updateDict = {
             'startSection' : [
@@ -673,10 +673,10 @@ class AMBERParser(AmberC.AMBERParserBase):
 #                forces_free.append(fi)
 #        if forces_free:
 #            # need to transpose array since its shape is [number_of_atoms,3] in the metadata
-#            backend.addArrayValues('atom_forces_free', np.transpose(np.asarray(forces_free)))
+#            backend.addArrayValues('atom_forces_xxx_free', np.transpose(np.asarray(forces_free)))
 #        if self.forces_raw:
 #            # need to transpose array since its shape is [number_of_atoms,3] in the metadata
-#            backend.addArrayValues('atom_forces_free_raw', np.transpose(np.asarray(self.forces_raw)))
+#            backend.addArrayValues('atom_forces_xxx_free_raw', np.transpose(np.asarray(self.forces_raw)))
 
     def setStartingPointCalculation(self, parser):
         backend = parser.backend
