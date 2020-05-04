@@ -1,11 +1,11 @@
 # Copyright 2017-2018 Berk Onat, Fawzi Mohamed
-# 
+#
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,17 +15,16 @@
 from builtins import map
 from builtins import range
 from builtins import object
-import setup_paths
 import numpy as np
 import nomadcore.ActivateLogging
 from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import mainFunction, ParsingContext
 from nomadcore.simple_parser import SimpleMatcher as SM
-from AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary, getList_MetaStrInDict, getDict_MetaStrInDict
+from .AMBERDictionary import set_excludeList, set_includeList, get_updateDictionary, getList_MetaStrInDict, getDict_MetaStrInDict
 from nomadcore.smart_parser.SmartParserDictionary import isMetaStrInDict
 from contextlib import contextmanager
-import AMBERCommon as AmberC
-import trajectory_reader as TrajRead
+from . import AMBERCommon as AmberC
+from . import trajectory_reader as TrajRead
 import logging
 import os
 import re
@@ -37,7 +36,7 @@ import sys
 ############################################################
 
 LOGGER = logging.getLogger("nomad.AMBERParser")
-      
+
 #PRINTABLE = re.compile(r"\W+")
 
 @contextmanager
@@ -78,12 +77,12 @@ class AMBERParser(AmberC.AMBERParserBase):
             metaInfo = self.metaInfoEnv.infoKinds[name]
             if (name.startswith('x_amber_mdin_') and
                 metaInfo.kindStr == "type_document_content" and
-                ("x_amber_mdin_method" in metaInfo.superNames or 
-                 "x_amber_mdin_run" in metaInfo.superNames or 
+                ("x_amber_mdin_method" in metaInfo.superNames or
+                 "x_amber_mdin_run" in metaInfo.superNames or
                  "x_amber_mdin_system" in metaInfo.superNames) or
                 name.startswith('x_amber_parm_') and
                 metaInfo.kindStr == "type_document_content" and
-                ("x_amber_mdin_method" in metaInfo.superNames or 
+                ("x_amber_mdin_method" in metaInfo.superNames or
                  "x_amber_mdin_run" in metaInfo.superNames or
                  "x_amber_mdin_system" in metaInfo.superNames) or
                 name.startswith('x_amber_mdin_file_') and
@@ -91,7 +90,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                 ("x_amber_section_input_output_files" in metaInfo.superNames) or
                 name.startswith('x_amber_mdout_') and
                 metaInfo.kindStr == "type_document_content" and
-                ("x_amber_mdout_method" in metaInfo.superNames or 
+                ("x_amber_mdout_method" in metaInfo.superNames or
                  "x_amber_mdout_system" in metaInfo.superNames or
                  "x_amber_mdout_single_configuration_calculation" in metaInfo.superNames)
                 or name.startswith('section_single_configuration_calculation')
@@ -249,7 +248,7 @@ class AMBERParser(AmberC.AMBERParserBase):
 
     def topology_to_dictionary(self):
         """ This function generates self.topologyDict dictionary
-            and converts/stores all the topology information 
+            and converts/stores all the topology information
             according to the meta info definitions
         """
         newDict = {}
@@ -273,7 +272,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         return False, system_name, itemdict
 
     def topology_atom_to_mol(self, itemdict):
-        """ Function to generate data for atom_to_molecule 
+        """ Function to generate data for atom_to_molecule
         """
         if self.topology:
             residueList = self.topologyDict["resSeq"]
@@ -286,7 +285,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             return False, None, itemdict
 
     def topology_atom_type_and_interactions(self, backend, gIndex):
-        """ Function to generate data for atom_to_molecule 
+        """ Function to generate data for atom_to_molecule
         """
         sO = open_section
         supB = backend.superBackend
@@ -323,7 +322,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                     for bond in self.topology.bonds:
                         molname1, molatom1 = str(bond[0]).split('-')
                         molname2, molatom2 = str(bond[1]).split('-')
-                        if((aelm == str(molatom1) and belm == str(molatom2)) or 
+                        if((aelm == str(molatom1) and belm == str(molatom2)) or
                             (aelm == str(molatom2) and belm == str(molatom1))):
                             bondList.append(list(self.topologyBonds[bondid]))
                             interDict.update({interNum : bondList})
@@ -340,38 +339,38 @@ class AMBERParser(AmberC.AMBERParserBase):
             for elm in range(len(atom_type_list)):
                 with sO(supB, 'section_atom_type'):
                     ### !!! ----------------------------------------------- !!!
-                    ### !!! Need to check the definition of atom type name. 
+                    ### !!! Need to check the definition of atom type name.
                     ### !!! Which one is better? C1, CA, C:1 or C !!!
                     ### !!! ----------------------------------------------- !!!
                     # Atom name? Atom element?
-                    supB.addValue('atom_type_name', str(atom_type_list[elm]) + ':' + str(elm+1))    
+                    supB.addValue('atom_type_name', str(atom_type_list[elm]) + ':' + str(elm+1))
                     # Atomic mass
-                    supB.addValue('atom_type_mass', massesList[elm])             
+                    supB.addValue('atom_type_mass', massesList[elm])
                     # Atomic element/symbol
-                    supB.addValue('x_amber_atom_type_element', elementList[elm]) 
+                    supB.addValue('x_amber_atom_type_element', elementList[elm])
                     # Atomic van der Waals radius
-                    supB.addValue('x_amber_atom_type_radius', radiusList[elm])   
+                    supB.addValue('x_amber_atom_type_radius', radiusList[elm])
                     # Atomic charge
-                    #self.superP.addValue('atom_type_charge', atom_charge)              
+                    #self.superP.addValue('atom_type_charge', atom_charge)
                     pass
 
             for inum in range(interNum):
                 with sO(supB, 'section_interaction'):
                     # atom indexes of bound pairs for a specific atom type
-                    supB.addArrayValues('interaction_atoms', np.asarray(interDict[inum]))     
+                    supB.addArrayValues('interaction_atoms', np.asarray(interDict[inum]))
                     # number of bonds for this type
-                    supB.addValue('number_of_interactions', len(interDict[inum]))             
+                    supB.addValue('number_of_interactions', len(interDict[inum]))
                     # number of atoms involved (2 for covalent bonds)
-                    supB.addValue('number_of_atoms_per_interaction', len(interDict[inum][0])) 
-                
+                    supB.addValue('number_of_atoms_per_interaction', len(interDict[inum][0]))
+
                     #if bondFunctional:
                     #    self.superP.addValue('interaction_kind', bondFunctional)  # functional form of the interaction
 
                     # this points to the relative section_atom_type
-                    supB.addArrayValues('x_amber_interaction_atom_to_atom_type_ref', 
-                            np.asarray(interTypeDict[inum]))  
+                    supB.addArrayValues('x_amber_interaction_atom_to_atom_type_ref',
+                            np.asarray(interTypeDict[inum]))
                     # interaction parameters for the functional
-                    #self.superP.addValue('interaction_parameters', bondParameters)  
+                    #self.superP.addValue('interaction_parameters', bondParameters)
 
 
 #            for i in range(len(moleculeTypeInfo)):
@@ -402,7 +401,7 @@ class AMBERParser(AmberC.AMBERParserBase):
 #    for res in mytopology.bonds:
 #        molname1, molatom1 = str(res[0]).split('-')
 #        molname2, molatom2 = str(res[1]).split('-')
-#        if molname1 in molname2: 
+#        if molname1 in molname2:
 #            atom_in_mol_bond.append(res)
 #            atom_in_mol_bond_num.append(bonds[index])
 #        else:
@@ -430,7 +429,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         #valuesDict = section.simpleValues
 
         frameSequenceGIndex = backend.openSection("section_frame_sequence")
-        self.metaStorage.updateBackend(backend, 
+        self.metaStorage.updateBackend(backend,
                 startsection=['section_frame_sequence'],
                 autoopenclose=False)
         backend.addValue("frame_sequence_to_sampling_ref", self.secSamplingGIndex)
@@ -445,14 +444,14 @@ class AMBERParser(AmberC.AMBERParserBase):
 
         Determine whether topology, trajectory and input coordinate files are
         supplied to the parser
-        
+
         Initiates topology and trajectory file handles.
 
-        Captures topology, atomic positions, atom labels, lattice vectors and 
-        stores them before section_system and 
+        Captures topology, atomic positions, atom labels, lattice vectors and
+        stores them before section_system and
         section_single_configuration_calculation are encountered.
         """
-        # Checking whether topology, input 
+        # Checking whether topology, input
         # coordinates and trajectory files exist
         atLeastOneFileExist = False
         working_dir_name = os.path.dirname(os.path.abspath(self.fName))
@@ -504,7 +503,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             }
         #self.secSamplingGIndex = backend.openSection("section_sampling_method")
         self.metaStorage.update(updateDict)
-        self.metaStorage.updateBackend(backend, 
+        self.metaStorage.updateBackend(backend,
                 startsection=['section_sampling_method'],
                 autoopenclose=False)
         self.secRestrictGIndex = backend.openSection("section_restricted_uri")
@@ -514,11 +513,11 @@ class AMBERParser(AmberC.AMBERParserBase):
             'dictionary' : section_restrictions_Dict
             }
         self.metaStorageRestrict.update(updateDict)
-        self.metaStorageRestrict.updateBackend(backend, 
+        self.metaStorageRestrict.updateBackend(backend,
                 startsection=['section_restricted_uri'],
                 autoopenclose=False)
         backend.closeSection("section_restricted_uri", self.secRestrictGIndex)
-    
+
     def onOpen_section_topology(self, backend, gIndex, section):
         # keep track of the latest topology description section
         if (gIndex is None or gIndex == -1 or gIndex == "-1"):
@@ -537,7 +536,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             'dictionary' : section_topology_Dict
             }
         self.metaStorage.update(updateDict)
-        self.metaStorage.updateBackend(backend.superBackend, 
+        self.metaStorage.updateBackend(backend.superBackend,
                 startsection=['section_topology'],
                 autoopenclose=False)
         self.topology_atom_type_and_interactions(backend, gIndex)
@@ -566,7 +565,7 @@ class AMBERParser(AmberC.AMBERParserBase):
 
         if self.topology:
             if (self.secTopologyGIndex is None or
-                (self.secTopologyGIndex == -1 or 
+                (self.secTopologyGIndex == -1 or
                 self.secTopologyGIndex == "-1")):
                 self.onOpen_section_topology(backend, None, None)
                 self.onClose_section_topology(backend, None, None)
@@ -636,7 +635,7 @@ class AMBERParser(AmberC.AMBERParserBase):
             }
         self.secVDWGIndex = backend.superBackend.openSection("section_energy_van_der_Waals")
         self.metaStorage.update(updateDictVDW)
-        self.metaStorage.updateBackend(backend.superBackend, 
+        self.metaStorage.updateBackend(backend.superBackend,
                 startsection=['section_energy_van_der_Waals'],
                 autoopenclose=False)
         backend.superBackend.closeSection("section_energy_van_der_Waals", self.secVDWGIndex)
@@ -648,10 +647,10 @@ class AMBERParser(AmberC.AMBERParserBase):
             'dictionary' : section_singlecalc_Dict
             }
         self.metaStorage.update(updateDict)
-        self.metaStorage.updateBackend(backend.superBackend, 
+        self.metaStorage.updateBackend(backend.superBackend,
                 startsection=['section_single_configuration_calculation'],
                 autoopenclose=False)
-        if(self.topology is not None or 
+        if(self.topology is not None or
            self.atompositions is not None):
             self.onOpen_section_system(backend, None, None)
             self.onClose_section_system(backend, None, None)
@@ -686,14 +685,14 @@ class AMBERParser(AmberC.AMBERParserBase):
 #        backend.addValue('calculation_to_calculation_kind', 'pertubative GW')
             backend.closeSection('section_calculation_to_calculation_refs')
         return None
-    
-    def check_namelist_store(self, parser, lastLine, stopOnMatchRe, quitOnMatchRe, 
+
+    def check_namelist_store(self, parser, lastLine, stopOnMatchRe, quitOnMatchRe,
             metaNameStart, matchNameList, matchNameDict, onlyCaseSensitive, stopOnFirstLine):
         stopOnMatch = False
         if stopOnMatchRe.findall(lastLine):
             stopOnMatch = True
             if self.firstLine==0:
-                if stopOnFirstLine: 
+                if stopOnFirstLine:
                     stopOnMatch = True
                 else:
                     stopOnMatch = False
@@ -703,22 +702,22 @@ class AMBERParser(AmberC.AMBERParserBase):
         if stopOnMatch:
             return True
         else:
-            # If there is at least one namelist in the line, 
+            # If there is at least one namelist in the line,
             # search for all others in the dictionary.
             if self.MD is not True:
                 newLine = parser.fIn.readline()
                 lastLine = ' = '.join([ "%s" % str(line) for line in zip(lastLine, newLine)])
             for cName, key in getDict_MetaStrInDict(matchNameDict).items():
-                reDict={key:value for value in 
-                        re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?:'|\")?(?P<%s>[\-+0-9.a-zA-Z:]+)(?:'|\")?\s*,?" 
+                reDict={key:value for value in
+                        re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?:'|\")?(?P<%s>[\-+0-9.a-zA-Z:]+)(?:'|\")?\s*,?"
                         % (cName, cName, cName, key)).findall(lastLine)}
                 if onlyCaseSensitive is not True:
-                    reDict.update({key:value for value in 
-                                   re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?:'|\")?(?P<%s>[\-+0-9.a-zA-Z:]+)(?:'|\")?\s*,?" 
+                    reDict.update({key:value for value in
+                                   re.compile(r"(?:\s%s|^%s|,%s)\s*=\s*(?:'|\")?(?P<%s>[\-+0-9.a-zA-Z:]+)(?:'|\")?\s*,?"
                                    % (cName.upper(), cName.upper(), cName.upper(), key)).findall(lastLine)})
                 if reDict:
                     for k,v in reDict.items():
-                        if k == key: 
+                        if k == key:
                             if k in list(parser.lastMatch.keys()):
                                 parser.lastMatch[k]=v
                             else:
@@ -726,7 +725,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                                 matchNameDict[k].activeInfo=True
             return False
 
-    def adHoc_read_namelist_stop_parsing(self, parser, stopOnMatchStr, quitOnMatchStr, 
+    def adHoc_read_namelist_stop_parsing(self, parser, stopOnMatchStr, quitOnMatchStr,
             metaNameStart, matchNameList, matchNameDict, onlyCaseSensitive, stopOnFirstLine):
         lastLine = parser.fIn.fInLine
         self.firstLine = 0
@@ -736,10 +735,10 @@ class AMBERParser(AmberC.AMBERParserBase):
         quitOnMatchRe = None
         if quitOnMatchStr is not None:
             quitOnMatchRe = re.compile(quitOnMatchStr)
-        if self.check_namelist_store(parser, lastLine, 
+        if self.check_namelist_store(parser, lastLine,
                 stopOnMatchRe, quitOnMatchRe,
-                metaNameStart, matchNameList, 
-                matchNameDict, onlyCaseSensitive, 
+                metaNameStart, matchNameList,
+                matchNameDict, onlyCaseSensitive,
                 stopOnFirstLine) is not True:
             while True:
                 lastLine = self.peekline(parser)
@@ -750,9 +749,9 @@ class AMBERParser(AmberC.AMBERParserBase):
                     # Matched with stopOnMatch. Discarding the line and return SimpleMatcher context.
                     # Can this line be discarded since it is the end of line for input control
                     # variables or end of namelist ?
-                    if self.check_namelist_store(parser, lastLine, 
-                            stopOnMatchRe, quitOnMatchRe, 
-                            metaNameStart, matchNameList, 
+                    if self.check_namelist_store(parser, lastLine,
+                            stopOnMatchRe, quitOnMatchRe,
+                            metaNameStart, matchNameList,
                             matchNameDict, onlyCaseSensitive,
                             stopOnFirstLine):
                         break
@@ -769,15 +768,15 @@ class AMBERParser(AmberC.AMBERParserBase):
                startReStr=r"\s*&cntrl",
                endReStr=r"(?:(?:^/|\s*/)|&end|&END)\s*$",
                subMatchers=[
-                   SM(startReStr=(r"\s*(?:" + 
-                      '|'.join(["%s" % (cName) for cName in cntrlNameList]) + 
+                   SM(startReStr=(r"\s*(?:" +
+                      '|'.join(["%s" % (cName) for cName in cntrlNameList]) +
                       "AMBER)\s*=\s*(?:'|\")?(?P<x_amber_mdin_finline>[\-+0-9.:a-zA-Z]+)(?:'|\")?\s*,?"),
-                      coverageIgnore=True, 
-                      adHoc=lambda p: 
-                      self.adHoc_read_namelist_stop_parsing(p, 
+                      coverageIgnore=True,
+                      adHoc=lambda p:
+                      self.adHoc_read_namelist_stop_parsing(p,
                       stopOnMatchStr=r"(?:(?:^/|\s*/)|&end|&END)\s*$",
                       quitOnMatchStr=None,
-                      metaNameStart="x_amber_mdin_", 
+                      metaNameStart="x_amber_mdin_",
                       matchNameList=cntrlNameList,
                       matchNameDict=self.cntrlDict,
                       onlyCaseSensitive=True,
@@ -789,14 +788,14 @@ class AMBERParser(AmberC.AMBERParserBase):
                 endReStr=r"\s*&wt\s*(?:type|TYPE)\s*=\s*(?:\'|\")(?:end|END)(?:\'|\")\s*\/\s*",
                 forwardMatch=True,
                 subMatchers=[
-                    SM(startReStr=r"(?:\s*&wt|^&wt)\s*(?:type|TYPE)\s*=" + 
-                       "(?:'|\")?(?P<x_amber_mdin_wt>[-+0-9.:a-zA-Z]+)(?:'|\")?", 
+                    SM(startReStr=r"(?:\s*&wt|^&wt)\s*(?:type|TYPE)\s*=" +
+                       "(?:'|\")?(?P<x_amber_mdin_wt>[-+0-9.:a-zA-Z]+)(?:'|\")?",
                        repeats=True,
-                       adHoc=lambda p: 
-                       self.adHoc_read_namelist_stop_parsing(p, 
+                       adHoc=lambda p:
+                       self.adHoc_read_namelist_stop_parsing(p,
                        stopOnMatchStr=r"\s*&wt\s*(?:type|TYPE)\s*=\s*(?:\'|\")(?:end|END)(?:\'|\")\s*\/\s*",
                        quitOnMatchStr=None,
-                       metaNameStart="x_amber_mdin_", 
+                       metaNameStart="x_amber_mdin_",
                        matchNameList=wtNameList,
                        matchNameDict=self.wtDict,
                        onlyCaseSensitive=False,
@@ -807,15 +806,15 @@ class AMBERParser(AmberC.AMBERParserBase):
                startReStr=r"\s*&ewald",
                endReStr=r"(?:(?:^/|\s*/)|&end|&END)\s*$",
                subMatchers=[
-                   SM(startReStr=(r"\s*(?:" + 
-                      '|'.join(["%s" % (cName) for cName in ewaldNameList]) + 
+                   SM(startReStr=(r"\s*(?:" +
+                      '|'.join(["%s" % (cName) for cName in ewaldNameList]) +
                       "AMBER)\s*=\s*(?:'|\")?(?P<x_amber_mdin_finline>[\-+0-9.:a-zA-Z]+)(?:'|\")?\s*,?"),
-                      coverageIgnore=True, 
-                      adHoc=lambda p: 
-                      self.adHoc_read_namelist_stop_parsing(p, 
+                      coverageIgnore=True,
+                      adHoc=lambda p:
+                      self.adHoc_read_namelist_stop_parsing(p,
                       stopOnMatchStr=r"(?:(?:^/|\s*/)|&end|&END)\s*$",
                       quitOnMatchStr=None,
-                      metaNameStart="x_amber_mdin_", 
+                      metaNameStart="x_amber_mdin_",
                       matchNameList=ewaldNameList,
                       matchNameDict=self.ewaldDict,
                       onlyCaseSensitive=True,
@@ -826,15 +825,15 @@ class AMBERParser(AmberC.AMBERParserBase):
                startReStr=r"\s*&qmmm",
                endReStr=r"(?:(?:^/|\s*/)|&end|&END)\s*$",
                subMatchers=[
-                   SM(startReStr=(r"\s*(?:" + 
-                      '|'.join(["%s" % (cName) for cName in qmmmNameList]) + 
+                   SM(startReStr=(r"\s*(?:" +
+                      '|'.join(["%s" % (cName) for cName in qmmmNameList]) +
                       "AMBER)\s*=\s*(?:'|\")?(?P<x_amber_mdin_finline>[\-+0-9.a-zA-Z:]+)(?:'|\")?\s*,?"),
-                      coverageIgnore=True, 
-                      adHoc=lambda p: 
-                      self.adHoc_read_namelist_stop_parsing(p, 
+                      coverageIgnore=True,
+                      adHoc=lambda p:
+                      self.adHoc_read_namelist_stop_parsing(p,
                       stopOnMatchStr=r"(?:(?:^/|\s*/)|&end|&END)\s*$",
                       quitOnMatchStr=None,
-                      metaNameStart="x_amber_mdin_", 
+                      metaNameStart="x_amber_mdin_",
                       matchNameList=qmmmNameList,
                       matchNameDict=self.qmmmDict,
                       onlyCaseSensitive=True,
@@ -847,20 +846,20 @@ class AMBERParser(AmberC.AMBERParserBase):
         parmNameList=getList_MetaStrInDict(self.parmDict)
         return [
             SM(name="parm",
-               startReStr=r"\|\s*Version\s*=\s*(?P<x_amber_parm_file_version>[0-9.eEdD]+)" + 
-                           "\s*Date\s*=\s*(?P<x_amber_parm_file_date>[0-9a-zA-Z\/]+)" + 
+               startReStr=r"\|\s*Version\s*=\s*(?P<x_amber_parm_file_version>[0-9.eEdD]+)" +
+                           "\s*Date\s*=\s*(?P<x_amber_parm_file_date>[0-9a-zA-Z\/]+)" +
                            "\s*Time\s*=\s*(?P<x_amber_parm_file_time>[0-9a-zA-Z:]+)",
                endReStr=r"\|\s*Memory\s*Use\s*Allocated\s*",
                subMatchers=[
-                   SM(startReStr=(r"\s*(?:" + 
-                      '|'.join(["%s" % (cName) for cName in parmNameList]) + 
+                   SM(startReStr=(r"\s*(?:" +
+                      '|'.join(["%s" % (cName) for cName in parmNameList]) +
                       "AMBER)\s*=\s*(?:'|\")?(?P<x_amber_mdin_finline>[\-+0-9.:a-zA-Z]+)(?:'|\")?\s*,?"),
-                      coverageIgnore=True, 
-                      adHoc=lambda p: 
-                      self.adHoc_read_namelist_stop_parsing(p, 
+                      coverageIgnore=True,
+                      adHoc=lambda p:
+                      self.adHoc_read_namelist_stop_parsing(p,
                       stopOnMatchStr=r"\|\s*Memory\s*Use\s*Allocated\s*",
                       quitOnMatchStr=None,
-                      metaNameStart="x_amber_parm_", 
+                      metaNameStart="x_amber_parm_",
                       matchNameList=parmNameList,
                       matchNameDict=self.parmDict,
                       onlyCaseSensitive=True,
@@ -878,15 +877,15 @@ class AMBERParser(AmberC.AMBERParserBase):
                startReStr=r"\s*General\s*flags:",
                endReStr=r"\s*--{5}--*\s*3\.\s*ATOMIC\s*COORDINATES\s*",
                subMatchers=[
-                   SM(startReStr=(r"\s*(?:" + 
-                      '|'.join(["%s" % (cName) for cName in mdoutNameList]) + 
+                   SM(startReStr=(r"\s*(?:" +
+                      '|'.join(["%s" % (cName) for cName in mdoutNameList]) +
                       "AMBER)\s*=\s*(?:'|\")?(?P<x_amber_mdin_finline>[\-+0-9.:a-zA-Z]+)(?:'|\")?\s*,?"),
-                      coverageIgnore=True, 
-                      adHoc=lambda p: 
-                      self.adHoc_read_namelist_stop_parsing(p, 
+                      coverageIgnore=True,
+                      adHoc=lambda p:
+                      self.adHoc_read_namelist_stop_parsing(p,
                       stopOnMatchStr=r"\s*3\.\s*ATOMIC\s*COORDINATES",
                       quitOnMatchStr=None,
-                      metaNameStart="x_amber_mdin_", 
+                      metaNameStart="x_amber_mdin_",
                       matchNameList=mdoutNameList,
                       matchNameDict=newDict,
                       onlyCaseSensitive=True,
@@ -898,7 +897,7 @@ class AMBERParser(AmberC.AMBERParserBase):
     def build_fileNameListGroupSubMatcher(self):
         """Builds the Sub Matchers for the Main Parser
         """
-        return [SM(r"\|\s*%s:\s*(?P<%s>[0-9a-zA-Z_./\-]+)" % 
+        return [SM(r"\|\s*%s:\s*(?P<%s>[0-9a-zA-Z_./\-]+)" %
                 (fileNL.matchStr, fileNL.metaHeader + '_' + fileNL.metaNameTag + '_' + fileNL.metaName)) for fileNL in self.fileDict.values()]
 
 
@@ -917,8 +916,8 @@ class AMBERParser(AmberC.AMBERParserBase):
             endReStr=r"\s*--{5}--*\s*1\.\s*RESOURCE\s*USE:",
             subFlags=SM.SubFlags.Unordered,
             subMatchers=[
-                SM(r"(?:(?P<x_amber_mdin_header>[0-9a-zA-Z]+)?)\s*$", 
-                    coverageIgnore=True, 
+                SM(r"(?:(?P<x_amber_mdin_header>[0-9a-zA-Z]+)?)\s*$",
+                    coverageIgnore=True,
                     repeats=False),
                 ] + mdinKeywordsSimpleMatchers
             )
@@ -932,13 +931,13 @@ class AMBERParser(AmberC.AMBERParserBase):
             #subFlags=SM.SubFlags.Unordered,
             subMatchers=[
                 SM(r"\|\s*Flags\s*:\s*(?P<x_amber_parm_flags>[0-9a-zA-Z]+)?\s*$"),
-                SM(r"\s*getting\s*new\s*box\s*info\s*from\s*(?:bottom\s*of\s*|netcdf)(?P<x_amber_mdin_finline>[0-9a-zA-Z]+)\s*(file)?\s*", 
+                SM(r"\s*getting\s*new\s*box\s*info\s*from\s*(?:bottom\s*of\s*|netcdf)(?P<x_amber_mdin_finline>[0-9a-zA-Z]+)\s*(file)?\s*",
                    coverageIgnore=True),
-                SM(r"\|(\s*NetCDF)?\s*(?P<x_amber_parm_box_info>[_0-9a-zA-Z]+)\s*(?:ntb=[0-9]\s*and\s*igb=[0-9])?:?" + 
+                SM(r"\|(\s*NetCDF)?\s*(?P<x_amber_parm_box_info>[_0-9a-zA-Z]+)\s*(?:ntb=[0-9]\s*and\s*igb=[0-9])?:?" +
                     "(?:(?:box|Box)info\s*found|Setting\s*up\s*nonperiodic\s*simulation)\s*"),
-                SM(r"\|\s*Largest\s*sphere\s*to\s*fit\s*in\s*unit\s*cell\s*has\s*radius\s*=\s*" + 
+                SM(r"\|\s*Largest\s*sphere\s*to\s*fit\s*in\s*unit\s*cell\s*has\s*radius\s*=\s*" +
                     "(?P<x_amber_parm_unitcell_radius>[0-9.eEdD]+)\s*"),
-                SM(r"\|\s*(?P<x_amber_parm_file_format>[0-9.eEdD]+)" + 
+                SM(r"\|\s*(?P<x_amber_parm_file_format>[0-9.eEdD]+)" +
                     "\s*format\s*PARM\s*file\s*being\s*parsed\s*\.")
                 ] + parmKeywordsSimpleMatchers + [
                 SM(r"\|\s*Real\s*(?P<x_amber_mdin_finline>[0-9.eEdD]+)\s*", coverageIgnore=True),
@@ -968,17 +967,17 @@ class AMBERParser(AmberC.AMBERParserBase):
             #endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
             forwardMatch=True,
             subMatchers=[
-                   SM(startReStr=(r"\s*(?:(?:" + 
-                   '|'.join(["%s" % (cName) for cName in mddataNameList]) + 
+                   SM(startReStr=(r"\s*(?:(?:" +
+                   '|'.join(["%s" % (cName) for cName in mddataNameList]) +
                    "AMBER)\s*=\s*|NSTEP\s*ENERGY\s*RMS\s*)(?:'|\")?" +
                    "(?P<x_amber_mdin_finline>[\-+0-9.:a-zA-Z]+)(?:'|\")?\s*,?"),
                    #endReStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
-                   coverageIgnore=True, 
-                   adHoc=lambda p: 
-                   self.adHoc_read_namelist_stop_parsing(p, 
+                   coverageIgnore=True,
+                   adHoc=lambda p:
+                   self.adHoc_read_namelist_stop_parsing(p,
                    stopOnMatchStr=r"\s*(?:NSTEP\s*=|NSTEP\s*ENERGY\s*RMS\s*)",
                    quitOnMatchStr=r"\s*(?:FINAL\s*RESULTS|A\sV\sE\sR\sA\sG\sE\sS\s*O\sV\sE\sR)",
-                   metaNameStart="x_amber_mdout_", 
+                   metaNameStart="x_amber_mdout_",
                    matchNameList=mddataNameList,
                    matchNameDict=self.mddataDict,
                    onlyCaseSensitive=True,
@@ -1050,6 +1049,29 @@ class AMBERParser(AmberC.AMBERParserBase):
                     SM(name='end_run', startReStr=r"\s*wallclock\(\)\s*was\s*called\s*[0-9]+\s*times")
                 ]) # END NewRun
             ]
+
+
+class AMBERParserInterface():
+   """ A proper class envolop for running this parser from within python. """
+   def __init__(self, backend, **kwargs):
+       self.backend_factory = backend
+
+   def parse(self, mainfile):
+        from unittest.mock import patch
+        logging.info('amber parser started')
+        logging.getLogger('nomadcore').setLevel(logging.WARNING)
+        backend = self.backend_factory("amber.nomadmetainfo.json")
+        parserInfo = {'name': 'amber-parser', 'version': '1.0'}
+        context = AMBERParser()
+        with patch.object(sys, 'argv', ['<exe>', '--uri', 'nmd://uri', mainfile]):
+            mainFunction(
+                mainFileDescription=context.mainFileDescription(),
+                metaInfoEnv=None,
+                parserInfo=parserInfo,
+                cachingLevelForMetaName=context.cachingLevelForMetaName,
+                superContext=context,
+                superBackend=backend)
+        return backend
 
 
 if __name__ == "__main__":

@@ -1,18 +1,17 @@
 # Copyright 2017-2018 Berk Onat, Fawzi Mohamed
-# 
+#
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import setup_paths
 import numpy as np
 from nomadcore.unit_conversion.unit_conversion import convert_unit
 from contextlib import contextmanager
@@ -23,11 +22,11 @@ import re
 from collections import namedtuple
 
 COMMON_META_INFO_PATH = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 
+    os.path.dirname(os.path.abspath(__file__)),
     "../../../../nomad-meta-info/meta_info/nomad_meta_info/common.nomadmetainfo.json"))
 
 PUBLIC_META_INFO_PATH = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 
+    os.path.dirname(os.path.abspath(__file__)),
     "../../../../nomad-meta-info/meta_info/nomad_meta_info/public.nomadmetainfo.json"))
 
 NOTEXCEPT = re.compile(r'[^a-cf-zA-CF-Z!\.?,]')
@@ -57,7 +56,7 @@ class Container(object):
     def add(self, *args):
         for arg in args:
             if isinstance(arg, Container):
-                self.Containers.append(arg) 
+                self.Containers.append(arg)
             if isinstance(arg, Storage):
                 if self.Storage:
                     self.Storage(arg.__dict__)
@@ -73,7 +72,7 @@ class Container(object):
                     self.Storage = Storage(arg)
             if isinstance(arg, JsonMetaInfo):
                 for item in arg.jsonList:
-                    self.add(item) 
+                    self.add(item)
 
     def build(self, metadata, startsection, umaskdict):
         if isinstance(metadata, JsonMetaInfo):
@@ -104,7 +103,7 @@ class Container(object):
     def updaterefs(self, *args):
         for arg in args:
             if isinstance(arg, Container):
-                self.References.extend(arg.Name) 
+                self.References.extend(arg.Name)
 
     def update(self, *args):
         for arg in args:
@@ -193,23 +192,23 @@ class Container(object):
         """ Updating value with the rules given in depends
 
          Updating values follows the following order:
-          1) If 'depends' is supplied (not empty or not None), 
+          1) If 'depends' is supplied (not empty or not None),
              the tests in the depends list will be checked in order.
-             If one of the tests is successful than the one of the 
+             If one of the tests is successful than the one of the
              values in 'assign' or 'value' will be updated for the item.
              Here 'assign' will assign a new value in the given string and
              'value' will assign the value of the given key item.
-             (Ex. : 'assign' : 'CG' will update the item with 'CG' while 
-             'value' : 'NATOM' will update the item with number of atoms 
+             (Ex. : 'assign' : 'CG' will update the item with 'CG' while
+             'value' : 'NATOM' will update the item with number of atoms
              returned by the value of NATOM key ,which is stored in lookup dict.)
-          2) If 'depends' is supplied but a lookup dictionary is not than 
+          2) If 'depends' is supplied but a lookup dictionary is not than
              only the values of attributes in the sections can be used for test.
              The rest of the tests and assignments are updated as in case (1).
           3) If 'depends' is not supplied, subfunction is used to update value.
-          4) If 'depends' and subfunction are not supplied but value of 
-             MetaInfoMap is supplied, the value will be assign directly from the value 
+          4) If 'depends' and subfunction are not supplied but value of
+             MetaInfoMap is supplied, the value will be assign directly from the value
              item.
-          5) If none of the above items are supplied, this function will return None 
+          5) If none of the above items are supplied, this function will return None
              to not update any values for the selected item.
         """
         # Check whether depends is supplied in the item.
@@ -293,7 +292,7 @@ class Container(object):
             # I hope you know what you are doing
             newUpdateValue = updateValue
         return newUpdateValue
-    
+
     def convertUnits(self, updateValue, unit, unitdict):
         if(isinstance(updateValue, list) or isinstance(updateValue, tuple)):
             updateValue = [float(ival) * self.unitConverter(
@@ -320,7 +319,7 @@ class Container(object):
 
             The unit names are converted to numbers and the resulting
             expression will be evaluated by python.
-            Ex.: unit = 'electron-volt/Angstrom^3' 
+            Ex.: unit = 'electron-volt/Angstrom^3'
                  will be converted to
                  unit = '1.602176565e-19*1.0/1.0e-10**3'
                  factor = eval(unit) = 160.2176565e+9 Joule/meter^3 (Pascal)
@@ -359,7 +358,7 @@ class Container(object):
                         if depdict['value'] in localdict:
                             checkval = localdict[depdict['value']]
                         else:
-                            accessName, checkval = self.findNameInLookupDict(depdict['value'], 
+                            accessName, checkval = self.findNameInLookupDict(depdict['value'],
                                     item.lookupdict)
                             localdict.update({depdict['value'] : checkval})
                         return checkval, localdict
@@ -446,12 +445,12 @@ class Container(object):
                         #No need to store, assign the updated value
                         self.Storage.__dict__[itemk]["val"] = updateValue
                     self.Storage.__dict__[itemk]["act"] = True
-                elif (itemk.startswith('x_') and 
+                elif (itemk.startswith('x_') and
                       itemv.activeSection == self.Name):
                     attrvalues = {
-                            'act' : True, 
-                            'val' : updateValue, 
-                            'kind': None, 
+                            'act' : True,
+                            'val' : updateValue,
+                            'kind': None,
                             'dtyp': "C",
                             'unit': None,
                             'size': [],
@@ -503,16 +502,16 @@ class Container(object):
         else:
             if printok:
                 if color:
-                    string = '%s\033[9%sm-->[' % (decorate + self.Indent, str(color%6 + 1)) 
+                    string = '%s\033[9%sm-->[' % (decorate + self.Indent, str(color%6 + 1))
                     string = string + ','.join(['%s' % (name) for name in self.Name]) + ']\n\033[0m'
                 else:
-                    string = '%s-->[' % (decorate + self.Indent) 
+                    string = '%s-->[' % (decorate + self.Indent)
                     string = string + ','.join(['%s' % (name) for name in self.Name]) + ']\n'
         if printok:
             if color:
-                string = string + '%s\033[9%sm|\033[0m   `.\n' % (decorate + self.Indent, str(color%6 + 1)) 
+                string = string + '%s\033[9%sm|\033[0m   `.\n' % (decorate + self.Indent, str(color%6 + 1))
             else:
-                string = string + '%s|   `.\n' % (decorate + self.Indent) 
+                string = string + '%s|   `.\n' % (decorate + self.Indent)
         if self.Storage:
             for key in self.Storage.__dict__:
                 printattrok = False
@@ -524,19 +523,19 @@ class Container(object):
                 if printattrok and printok:
                     if color:
                         if onlynames:
-                            string = string + '%s\033[9%sm|\033[0m    |__.%s\n' % (decorate 
+                            string = string + '%s\033[9%sm|\033[0m    |__.%s\n' % (decorate
                                     + self.Indent, str(color%6 + 1), key)
                         else:
-                            string = string + '%s\033[9%sm|\033[0m    |__.%s : Active=%s Value=%s\n' % (decorate 
-                                    + self.Indent, str(color%6 + 1), key, self.Storage.__dict__[key]["act"], 
+                            string = string + '%s\033[9%sm|\033[0m    |__.%s : Active=%s Value=%s\n' % (decorate
+                                    + self.Indent, str(color%6 + 1), key, self.Storage.__dict__[key]["act"],
                                     self.Storage.__dict__[key]["val"])
                     else:
                         if onlynames:
-                            string = string + '%s|    |__.%s\n' % (decorate + 
+                            string = string + '%s|    |__.%s\n' % (decorate +
                                     self.Indent, key)
                         else:
-                            string = string + '%s|    |__.%s : Active=%s Value=%s\n' % (decorate + 
-                                    self.Indent, key, self.Storage.__dict__[key]["act"], 
+                            string = string + '%s|    |__.%s : Active=%s Value=%s\n' % (decorate +
+                                    self.Indent, key, self.Storage.__dict__[key]["act"],
                                     self.Storage.__dict__[key]["val"])
             if color:
                 string = string + '%s\033[9%sm|\033[0m\n' % (decorate + self.Indent, str(color%6 + 1))
@@ -545,13 +544,13 @@ class Container(object):
         if self.Containers:
             for module in self.Containers:
                 if color:
-                    string = string + '%s\033[9%sm|\033[0m\n' % (decorate + self.Indent, 
-                            str(color%6 + 1)) + module.__str__(self.Name, 
-                            '%s\033[9%sm|\033[0m' % (decorate + self.Indent, str(color%6 + 1)), 
+                    string = string + '%s\033[9%sm|\033[0m\n' % (decorate + self.Indent,
+                            str(color%6 + 1)) + module.__str__(self.Name,
+                            '%s\033[9%sm|\033[0m' % (decorate + self.Indent, str(color%6 + 1)),
                             color, printactive, onlynames)
                 else:
-                    string = string + '%s|\n' % (decorate + self.Indent) + module.__str__(self.Name, 
-                            '%s|' % (decorate + self.Indent), 
+                    string = string + '%s|\n' % (decorate + self.Indent) + module.__str__(self.Name,
+                            '%s|' % (decorate + self.Indent),
                             color, printactive, onlynames)
         return string
 
@@ -590,7 +589,7 @@ class Storage(dict):
 
 class JsonMetaInfo(object):
     """ Json file loader for meta info data of NOMAD.
-        Loads data and extracts values of items 
+        Loads data and extracts values of items
         with specified superNames
     """
     def __init__(self, *args):
@@ -600,7 +599,7 @@ class JsonMetaInfo(object):
                 with open(filepath, encoding="utf-8") as f:
                     jsonDict = json.load(f)
             except:
-                logging.exception("Error while loading file %s" % filePath)
+                logging.exception("Error while loading file %s" % filepath)
                 raise
             typeStr = jsonDict.get("type","nomad_meta_info_1_0")
             typeRe = re.compile(r"nomad_meta_info_(?P<major>[0-9]+)_(?P<minor>[0-9]+)$")
@@ -638,13 +637,13 @@ class JsonMetaInfo(object):
                 refs = item['referencedSections']
             except:
                 refs = []
-            if ('type_section' in kindname or 
+            if ('type_section' in kindname or
                 sectionname not in superlist):
                 continue
             attrvalues = {
-                    'act' : False, 
-                    'val' : None, 
-                    'kind': kindname, 
+                    'act' : False,
+                    'val' : None,
+                    'kind': kindname,
                     'dtyp': dtyp,
                     'unit': unit,
                     'size': size,
@@ -665,14 +664,14 @@ class JsonMetaInfo(object):
                 kindname = item['kindStr']
             except:
                 kindname = []
-            if ('type_section' in kindname or 
-                'type_abstract_document_content' in kindname): 
+            if ('type_section' in kindname or
+                'type_abstract_document_content' in kindname):
                 if sectionname in superlist:
                     searchList.append(itemname)
                 if itemname not in nameList:
                     nameList.append(itemname)
         for name in searchList:
-            if (set([name]) not in set(nameList) and 
+            if (set([name]) not in set(nameList) and
                 self.isparent(name)):
                 siblings.append(name)
         return siblings
@@ -717,10 +716,10 @@ class JsonMetaInfo(object):
 
 if __name__ == "__main__":
     run = Container('section_run')
-    exclude_dict = { 
+    exclude_dict = {
             'section_run' : [
-            'section_processor_info', 
-            'section_processor_log', 
+            'section_processor_info',
+            'section_processor_log',
             'section_springer_material',
             'section_repository_info'
             ]}
@@ -736,7 +735,7 @@ if __name__ == "__main__":
                 'topology_force_field_name' : {'depends' : [[]], 'assign' : "ReaxFF"}
                 }
             }
-    
+
     run.populate(jsonmetadata, 'section_run', exclude_dict, updateDict)
     run.Color = 4
     for container in run.Containers:

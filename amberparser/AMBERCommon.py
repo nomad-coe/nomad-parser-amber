@@ -1,27 +1,26 @@
 # Copyright 2017-2018 Berk Onat, Fawzi Mohamed
-# 
+#
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import setup_paths
 import numpy as np
 from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
 from nomadcore.unit_conversion.unit_conversion import convert_unit
 from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import mainFunction
 from nomadcore.simple_parser import SimpleMatcher as SM
-from AMBERDictionary import get_unitDict, get_nameListDict, get_fileListDict, set_excludeList, set_includeList
-from MetaInfoStorage import COMMON_META_INFO_PATH, PUBLIC_META_INFO_PATH
-import MetaInfoStorage as mStore
+from .AMBERDictionary import get_unitDict, get_nameListDict, get_fileListDict, set_excludeList, set_includeList
+from .MetaInfoStorage import COMMON_META_INFO_PATH, PUBLIC_META_INFO_PATH
+from . import MetaInfoStorage as mStore
 import logging
 import json
 import os
@@ -34,20 +33,20 @@ PARSERMETANAME = PARSERNAME.lower()
 PARSERTAG = 'x_' + PARSERMETANAME
 
 PARSER_INFO_DEFAULT = {
-        'name':'amber-parser', 
+        'name':'amber-parser',
         'version': '0.0.1'
 }
 
 META_INFO_PATH = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 
+    os.path.dirname(os.path.abspath(__file__)),
     "../../../../nomad-meta-info/meta_info/nomad_meta_info/amber.nomadmetainfo.json"))
 
 LOGGER = logging.getLogger("nomad.AMBERParser")
 
 def get_metaInfo(self):
-    metaInfoEnv, warnings = loadJsonFile(filePath=META_INFO_PATH, 
-                                         dependencyLoader=None, 
-                                         extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS, 
+    metaInfoEnv, warnings = loadJsonFile(filePath=META_INFO_PATH,
+                                         dependencyLoader=None,
+                                         extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS,
                                          uri=None)
     metaInfoEnv = set_section_metaInfoEnv(metaInfoEnv, 'section', ['input_output_files'], 'type_section', False, ["section_run"])
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.fileDict)
@@ -56,7 +55,7 @@ def get_metaInfo(self):
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.qmmmDict)
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.parmDict)
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.mddataDict)
-    metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.extraDict) 
+    metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.extraDict)
     return metaInfoEnv
 
 def set_section_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, repeatingSection, supraNames):
@@ -76,7 +75,7 @@ def set_section_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, repeating
                 name='x_amber_%s_%s' % (metaNameTag, newName),
                 kindStr=listTypStr,
                 repeats=repeatingSection,
-                superNames=supraNames)) 
+                superNames=supraNames))
 
     return infoEnv
 
@@ -97,7 +96,7 @@ def setDict_metaInfoEnv(infoEnv, nameDict):
                 description='auto generated meta info data',
                 dtypeStr=nameDict[keyName].metaInfoType,
                 shape=[],
-                superNames=nameDict[keyName].activeSections)) 
+                superNames=nameDict[keyName].activeSections))
 
     return infoEnv
 
@@ -118,7 +117,7 @@ def set_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, supraNames):
                 description='auto generated meta info data',
                 dtypeStr=listTypStr,
                 shape=[],
-                superNames=supraNames)) 
+                superNames=supraNames))
 
     return infoEnv
 
@@ -128,15 +127,15 @@ class AMBERParserBase(object):
                  re_program_name=None):
         self.metaStorage = mStore.Container('section_run')
         self.metaStorageRestrict = mStore.Container('section_restricted_uri')
-        exclude_dict = { 
+        exclude_dict = {
             'section_run' : [
-            'section_processor_info', 
-            'section_processor_log', 
+            'section_processor_info',
+            'section_processor_log',
             'section_springer_material',
             'section_repository_info'
             ]}
         jsonmetadata = mStore.JsonMetaInfo(
-                COMMON_META_INFO_PATH, 
+                COMMON_META_INFO_PATH,
                 PUBLIC_META_INFO_PATH,
                 META_INFO_PATH
                 )
@@ -165,8 +164,8 @@ class AMBERParserBase(object):
 
     def parse(self):
         self.coverageIgnore = re.compile(r"^(?:" + r"|".join(self.coverageIgnoreList) + r")$")
-        mainFunction(mainFileDescription=self.mainFileDescription(), 
-                     metaInfoEnv=self.metaInfoEnv, 
+        mainFunction(mainFileDescription=self.mainFileDescription(),
+                     metaInfoEnv=self.metaInfoEnv,
                      parserInfo=self.parserInfo,
                      cachingLevelForMetaName=self.cachingLevelForMetaName,
                      superContext=self)

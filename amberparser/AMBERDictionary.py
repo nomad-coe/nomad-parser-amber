@@ -1,18 +1,17 @@
 # Copyright 2017-2018 Berk Onat, Fawzi Mohamed
-# 
+#
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import setup_paths
 import numpy as np
 import logging
 import json
@@ -26,15 +25,15 @@ class MetaInfoMap(dict):
     activeInfo=False
     infoPurpose=None
     defaultValue=None
-    nameTranslate=None 
-    matchStr=None 
-    metaHeader=None 
-    metaName=None 
+    nameTranslate=None
+    matchStr=None
+    metaHeader=None
+    metaName=None
     metaNameTag=None
     metaInfoType=None
-    value=None 
-    valueSize=None 
-    sizeMetaName=None 
+    value=None
+    valueSize=None
+    sizeMetaName=None
     depends=None
     lookupdict=None
     subfunction=None
@@ -47,7 +46,7 @@ class MetaInfoMap(dict):
             if isinstance(arg, dict):
                 for k, v in arg.items():
                     if k in self:
-                        self[k] = v 
+                        self[k] = v
         if kwargs:
             for k, v in kwargs.items():
                 if k in self:
@@ -69,18 +68,18 @@ class FileInfoMap(dict):
     activeInfo=False
     infoPurpose=None
     fileName=None
-    fileFormat=None 
+    fileFormat=None
     fileSupplied=False
     fileHolder=None
-    nameTranslate=None 
-    matchStr=None 
-    metaHeader=None 
-    metaName=None 
+    nameTranslate=None
+    matchStr=None
+    metaHeader=None
+    metaName=None
     metaNameTag=None
     metaInfoType=None
-    value=None 
-    valueSize=None 
-    sizeMetaName=None 
+    value=None
+    valueSize=None
+    sizeMetaName=None
     depends=None
     lookupdict=None
     subfunction=None
@@ -92,7 +91,7 @@ class FileInfoMap(dict):
             if isinstance(arg, dict):
                 for k, v in arg.items():
                     if k in self:
-                        self[k] = v 
+                        self[k] = v
         if kwargs:
             for k, v in kwargs.items():
                 if k in self:
@@ -180,23 +179,23 @@ def get_unitDict(keyname):
     """ Unit dictionary for convertions
 
         Unit names will be converted to values.
-        When defining units in translator dictionary, 
+        When defining units in translator dictionary,
         the unit names in the dictionary should be used.
         The unit convertion values are written for SI units.
-        If you would like to change it, just add another key 
+        If you would like to change it, just add another key
         to the dictionary and change the key at parser base.
         Usage:
-           Natively support python language in definitions. 
-           You can use any python math operator and function. 
-           Moreover, you can use space or - for multiplication 
-           and ^ for power of values. 
+           Natively support python language in definitions.
+           You can use any python math operator and function.
+           Moreover, you can use space or - for multiplication
+           and ^ for power of values.
         Example:
             kilogram/meter^2 can be written as
             kilo-gram/meter^2 or kilo-gram/meter**2
             and will be calculated as
             kilo*gram/meter**2
 
-        For a quick check for AMBER units please see: 
+        For a quick check for AMBER units please see:
         http://ambermd.org/Questions/units.html
     """
     unitDict = {
@@ -254,14 +253,14 @@ def get_fileListDict():
     """
     # Default topology format of Amber is parm, prmtop file
     # As of Amber 9, default trajectory format of Amber is in binary NetCDF format.
-    # The alternative is formatted ASCII (mdcrd) format and the format will be  
+    # The alternative is formatted ASCII (mdcrd) format and the format will be
     #     determined after parsing the input control parameters
-    # Default input coordinate file format is auto-detected at run time by Amber. 
+    # Default input coordinate file format is auto-detected at run time by Amber.
     # The file format can be either formatted ASCII (inpcrd) or NetCDF.
-    # The format will be determined by checking the file with load 
+    # The format will be determined by checking the file with load
     #     and iread functions that are supplied by TrajectoryReader.
-    # Default restart file is also in NetCDF format. 
-    # Optionally, velocities and forces can be written to 
+    # Default restart file is also in NetCDF format.
+    # Optionally, velocities and forces can be written to
     # mdvel (.mdvel) and mdfrc (.mdfrc) files, respectively
     startpage = {
         'nameTranslate'   :  metaNameConverter,
@@ -273,22 +272,22 @@ def get_fileListDict():
         }
     namelist = {
         'MDIN'   : FileInfoMap(startpage),
-        'MDOUT'  : FileInfoMap(startpage), 
-        'INPCRD' : FileInfoMap(startpage, activeInfo=True, fileFormat=['.inpcrd', '.ncrst'], 
-                               infoPurpose=['inputcoordinates', 'inputvelocities', 'inputunitcell']), 
-        'PARM'   : FileInfoMap(startpage, activeInfo=True, fileFormat=['.prmtop', '.parm7'], 
+        'MDOUT'  : FileInfoMap(startpage),
+        'INPCRD' : FileInfoMap(startpage, activeInfo=True, fileFormat=['.inpcrd', '.ncrst'],
+                               infoPurpose=['inputcoordinates', 'inputvelocities', 'inputunitcell']),
+        'PARM'   : FileInfoMap(startpage, activeInfo=True, fileFormat=['.prmtop', '.parm7'],
                                infoPurpose=['topology', 'unitcell']),
         'RESTRT' : FileInfoMap(startpage),
         'REFC'   : FileInfoMap(startpage),
         'MDVEL'  : FileInfoMap(startpage, activeInfo=True, infoPurpose=['velocities']),
         'MDFRC'  : FileInfoMap(startpage, activeInfo=True, infoPurpose=['forces']),
         'MDEN'   : FileInfoMap(startpage),
-        'MDCRD'  : FileInfoMap(startpage, activeInfo=True, fileFormat=['.netcdf', '.mdcrd'], 
+        'MDCRD'  : FileInfoMap(startpage, activeInfo=True, fileFormat=['.netcdf', '.mdcrd'],
                                infoPurpose=['trajectory', 'unitcell']),
         'MDINFO' : FileInfoMap(startpage),
         'MTMD'   : FileInfoMap(startpage),
         'INPDIP' : FileInfoMap(startpage),
-        'RSTDIP' : FileInfoMap(startpage), 
+        'RSTDIP' : FileInfoMap(startpage),
         'INPTRA' : FileInfoMap(startpage)
         }
     return MapDictionary(namelist)
@@ -311,15 +310,15 @@ def get_nameListDict(deflist):
         'activeSections'  : ['x_amber_mdin_method']
         }
     cntrllist = {
-        'imin' : MetaInfoMap(startpage, defaultValue=0), 
+        'imin' : MetaInfoMap(startpage, defaultValue=0),
         'nmropt' : MetaInfoMap(startpage, defaultValue=0),
-        'ntx' : MetaInfoMap(startpage, defaultValue=1), 
-        'irest' : MetaInfoMap(startpage, defaultValue=0), 
+        'ntx' : MetaInfoMap(startpage, defaultValue=1),
+        'irest' : MetaInfoMap(startpage, defaultValue=0),
         'ntxo' : MetaInfoMap(startpage, defaultValue=2),
         'ntpr' : MetaInfoMap(startpage, defaultValue=50),
         'ntave' : MetaInfoMap(startpage, defaultValue=0),
         'ntwr' : MetaInfoMap(startpage, defaultValue='nstlim'),
-        'iwrap' : MetaInfoMap(startpage, defaultValue=0), 
+        'iwrap' : MetaInfoMap(startpage, defaultValue=0),
         'ntwx' : MetaInfoMap(startpage, defaultValue=0),
         'ntwv' : MetaInfoMap(startpage, defaultValue=0),
         'ntwf' : MetaInfoMap(startpage, defaultValue=0),
@@ -328,78 +327,78 @@ def get_nameListDict(deflist):
         'ntwprt' : MetaInfoMap(startpage, defaultValue=0),
         'idecomp' : MetaInfoMap(startpage, defaultValue=0),
         'ibelly' : MetaInfoMap(startpage, defaultValue=0),
-        'ntr' : MetaInfoMap(startpage, defaultValue=0), 
-        'restraint_wt' : MetaInfoMap(startpage), 
+        'ntr' : MetaInfoMap(startpage, defaultValue=0),
+        'restraint_wt' : MetaInfoMap(startpage),
         'restraintmask' : MetaInfoMap(startpage),
         'bellymask' : MetaInfoMap(startpage),
         'maxcyc' : MetaInfoMap(startpage, defaultValue=1),
-        'ncyc' : MetaInfoMap(startpage, defaultValue=10), 
-        'ntmin' : MetaInfoMap(startpage, defaultValue=1), 
-        'dx0' : MetaInfoMap(startpage, defaultValue=0.01), 
-        'drms' : MetaInfoMap(startpage, defaultValue=1.0E-4), 
-        'nstlim' : MetaInfoMap(startpage, defaultValue=1), 
-        'nscm' : MetaInfoMap(startpage, defaultValue=1000), 
-        't' : MetaInfoMap(startpage, defaultValue=0.0), 
-        'dt' : MetaInfoMap(startpage, defaultValue=0.001), 
-        'nrespa' : MetaInfoMap(startpage, defaultValue=0), 
-        'ntt' : MetaInfoMap(startpage, defaultValue=0), 
-        'temp0' : MetaInfoMap(startpage, defaultValue=300), 
-        'temp0les' : MetaInfoMap(startpage, defaultValue=-1), 
-        'tempi' : MetaInfoMap(startpage, defaultValue=0.0), 
-        'ig' : MetaInfoMap(startpage, defaultValue=-1), 
-        'tautp' : MetaInfoMap(startpage, defaultValue=1.0), 
-        'gamma_ln' : MetaInfoMap(startpage, defaultValue=0), 
-        'vrand' : MetaInfoMap(startpage, defaultValue=1000), 
-        'vlimit' : MetaInfoMap(startpage, defaultValue=0), 
-        'nkija' : MetaInfoMap(startpage, defaultValue=1), 
-        'idistr' : MetaInfoMap(startpage, defaultValue=0), 
-        'sinrtau' : MetaInfoMap(startpage, defaultValue=1.0), 
-        'ntp' : MetaInfoMap(startpage, defaultValue=0), 
-        'barostat' : MetaInfoMap(startpage, defaultValue=1), 
-        'mcbarint' : MetaInfoMap(startpage, defaultValue=100), 
-        'pres0' : MetaInfoMap(startpage, defaultValue=1.0), 
-        'comp' : MetaInfoMap(startpage, defaultValue=44.6), 
-        'taup' : MetaInfoMap(startpage, defaultValue=1.0), 
-        'csurften' : MetaInfoMap(startpage, defaultValue=0), 
-        'gamma_ten' : MetaInfoMap(startpage, defaultValue=0), 
-        'ninterface' : MetaInfoMap(startpage, defaultValue=2), 
-        'ntc' : MetaInfoMap(startpage, defaultValue=0), 
-        'tol' : MetaInfoMap(startpage, defaultValue=0.00001), 
-        'jfastw' : MetaInfoMap(startpage, defaultValue=0), 
-        'noshakemask' : MetaInfoMap(startpage, defaultValue=''), 
-        'ivcap' : MetaInfoMap(startpage, defaultValue=0), 
-        'fcap' : MetaInfoMap(startpage), 
-        'cutcap' : MetaInfoMap(startpage), 
-        'xcap' : MetaInfoMap(startpage), 
-        'ycap' : MetaInfoMap(startpage), 
-        'zcap' : MetaInfoMap(startpage), 
-        'iscale' : MetaInfoMap(startpage, defaultValue=0), 
-        'noeskp' : MetaInfoMap(startpage, defaultValue=1), 
-        'ipnlty' : MetaInfoMap(startpage, defaultValue=1), 
-        'mxsub' : MetaInfoMap(startpage, defaultValue=1), 
-        'scalm' : MetaInfoMap(startpage, defaultValue=100), 
-        'pencut' : MetaInfoMap(startpage, defaultValue=0.1), 
-        'tausw' : MetaInfoMap(startpage, defaultValue=0.1), 
-        'iemap' : MetaInfoMap(startpage, defaultValue=0), 
-        'gammamap' : MetaInfoMap(startpage, defaultValue=1), 
-        'ntf' : MetaInfoMap(startpage, defaultValue=1), 
-        'ntb' : MetaInfoMap(startpage, defaultValue=1), 
-        'dielc' : MetaInfoMap(startpage, defaultValue=1.0), 
-        'cut' : MetaInfoMap(startpage, defaultValue=8.0), 
-        'fswitch' : MetaInfoMap(startpage, defaultValue=-1), 
-        'nsnb' : MetaInfoMap(startpage, defaultValue=25), 
-        'ipol' : MetaInfoMap(startpage, defaultValue=0), 
-        'ifqnt' : MetaInfoMap(startpage, defaultValue=0), 
-        'igb' : MetaInfoMap(startpage, defaultValue=0), 
-        'irism' : MetaInfoMap(startpage, defaultValue=0), 
-        'ievb' : MetaInfoMap(startpage, defaultValue=0), 
-        'iamoeba' : MetaInfoMap(startpage, defaultValue=0), 
-        'lj1264' : MetaInfoMap(startpage), 
-        'efx' : MetaInfoMap(startpage, defaultValue=0), 
-        'efy' : MetaInfoMap(startpage, defaultValue=0), 
-        'efz' : MetaInfoMap(startpage, defaultValue=0), 
-        'efn' : MetaInfoMap(startpage, defaultValue=0), 
-        'efphase' : MetaInfoMap(startpage), 
+        'ncyc' : MetaInfoMap(startpage, defaultValue=10),
+        'ntmin' : MetaInfoMap(startpage, defaultValue=1),
+        'dx0' : MetaInfoMap(startpage, defaultValue=0.01),
+        'drms' : MetaInfoMap(startpage, defaultValue=1.0E-4),
+        'nstlim' : MetaInfoMap(startpage, defaultValue=1),
+        'nscm' : MetaInfoMap(startpage, defaultValue=1000),
+        't' : MetaInfoMap(startpage, defaultValue=0.0),
+        'dt' : MetaInfoMap(startpage, defaultValue=0.001),
+        'nrespa' : MetaInfoMap(startpage, defaultValue=0),
+        'ntt' : MetaInfoMap(startpage, defaultValue=0),
+        'temp0' : MetaInfoMap(startpage, defaultValue=300),
+        'temp0les' : MetaInfoMap(startpage, defaultValue=-1),
+        'tempi' : MetaInfoMap(startpage, defaultValue=0.0),
+        'ig' : MetaInfoMap(startpage, defaultValue=-1),
+        'tautp' : MetaInfoMap(startpage, defaultValue=1.0),
+        'gamma_ln' : MetaInfoMap(startpage, defaultValue=0),
+        'vrand' : MetaInfoMap(startpage, defaultValue=1000),
+        'vlimit' : MetaInfoMap(startpage, defaultValue=0),
+        'nkija' : MetaInfoMap(startpage, defaultValue=1),
+        'idistr' : MetaInfoMap(startpage, defaultValue=0),
+        'sinrtau' : MetaInfoMap(startpage, defaultValue=1.0),
+        'ntp' : MetaInfoMap(startpage, defaultValue=0),
+        'barostat' : MetaInfoMap(startpage, defaultValue=1),
+        'mcbarint' : MetaInfoMap(startpage, defaultValue=100),
+        'pres0' : MetaInfoMap(startpage, defaultValue=1.0),
+        'comp' : MetaInfoMap(startpage, defaultValue=44.6),
+        'taup' : MetaInfoMap(startpage, defaultValue=1.0),
+        'csurften' : MetaInfoMap(startpage, defaultValue=0),
+        'gamma_ten' : MetaInfoMap(startpage, defaultValue=0),
+        'ninterface' : MetaInfoMap(startpage, defaultValue=2),
+        'ntc' : MetaInfoMap(startpage, defaultValue=0),
+        'tol' : MetaInfoMap(startpage, defaultValue=0.00001),
+        'jfastw' : MetaInfoMap(startpage, defaultValue=0),
+        'noshakemask' : MetaInfoMap(startpage, defaultValue=''),
+        'ivcap' : MetaInfoMap(startpage, defaultValue=0),
+        'fcap' : MetaInfoMap(startpage),
+        'cutcap' : MetaInfoMap(startpage),
+        'xcap' : MetaInfoMap(startpage),
+        'ycap' : MetaInfoMap(startpage),
+        'zcap' : MetaInfoMap(startpage),
+        'iscale' : MetaInfoMap(startpage, defaultValue=0),
+        'noeskp' : MetaInfoMap(startpage, defaultValue=1),
+        'ipnlty' : MetaInfoMap(startpage, defaultValue=1),
+        'mxsub' : MetaInfoMap(startpage, defaultValue=1),
+        'scalm' : MetaInfoMap(startpage, defaultValue=100),
+        'pencut' : MetaInfoMap(startpage, defaultValue=0.1),
+        'tausw' : MetaInfoMap(startpage, defaultValue=0.1),
+        'iemap' : MetaInfoMap(startpage, defaultValue=0),
+        'gammamap' : MetaInfoMap(startpage, defaultValue=1),
+        'ntf' : MetaInfoMap(startpage, defaultValue=1),
+        'ntb' : MetaInfoMap(startpage, defaultValue=1),
+        'dielc' : MetaInfoMap(startpage, defaultValue=1.0),
+        'cut' : MetaInfoMap(startpage, defaultValue=8.0),
+        'fswitch' : MetaInfoMap(startpage, defaultValue=-1),
+        'nsnb' : MetaInfoMap(startpage, defaultValue=25),
+        'ipol' : MetaInfoMap(startpage, defaultValue=0),
+        'ifqnt' : MetaInfoMap(startpage, defaultValue=0),
+        'igb' : MetaInfoMap(startpage, defaultValue=0),
+        'irism' : MetaInfoMap(startpage, defaultValue=0),
+        'ievb' : MetaInfoMap(startpage, defaultValue=0),
+        'iamoeba' : MetaInfoMap(startpage, defaultValue=0),
+        'lj1264' : MetaInfoMap(startpage),
+        'efx' : MetaInfoMap(startpage, defaultValue=0),
+        'efy' : MetaInfoMap(startpage, defaultValue=0),
+        'efz' : MetaInfoMap(startpage, defaultValue=0),
+        'efn' : MetaInfoMap(startpage, defaultValue=0),
+        'efphase' : MetaInfoMap(startpage),
         'effreq' : MetaInfoMap(startpage)
         }
 
@@ -411,7 +410,7 @@ def get_nameListDict(deflist):
         'iinc' : MetaInfoMap(startpage),
         'imult' : MetaInfoMap(startpage)
         }
-    
+
     ewaldlist = {
         'nfft1' : MetaInfoMap(startpage),
         'nfft2' : MetaInfoMap(startpage),
@@ -477,7 +476,7 @@ def get_nameListDict(deflist):
         'ntpr' : MetaInfoMap(startpage),
         'grms_tol' : MetaInfoMap(startpage),
         'ndiis_attempts' : MetaInfoMap(startpage),
-        'ndiis_matrices' : MetaInfoMap(startpage), 
+        'ndiis_matrices' : MetaInfoMap(startpage),
         'vshift' : MetaInfoMap(startpage),
         'errconv' : MetaInfoMap(startpage),
         'qmmm_int' : MetaInfoMap(startpage),
@@ -487,12 +486,12 @@ def get_nameListDict(deflist):
         'dftb_telec_step' : MetaInfoMap(startpage),
         'fockp_d1' : MetaInfoMap(startpage),
         'fockp_d2' : MetaInfoMap(startpage),
-        'fockp_d3' : MetaInfoMap(startpage), 
+        'fockp_d3' : MetaInfoMap(startpage),
         'fockp_d4' : MetaInfoMap(startpage),
         'pseudo_diag_criteria' : MetaInfoMap(startpage),
         'damp' : MetaInfoMap(startpage),
         'kappa' : MetaInfoMap(startpage),
-        'min_heavy_mass' : MetaInfoMap(startpage), 
+        'min_heavy_mass' : MetaInfoMap(startpage),
         'r_switch_hi' : MetaInfoMap(startpage),
         'r_switch_lo' : MetaInfoMap(startpage),
         'iqmatoms' : MetaInfoMap(startpage),
@@ -502,55 +501,55 @@ def get_nameListDict(deflist):
         'printbondorders' : MetaInfoMap(startpage),
         'buffercharge' : MetaInfoMap(startpage),
         'printdipole' : MetaInfoMap(startpage),
-        'qmshake' : MetaInfoMap(startpage), 
+        'qmshake' : MetaInfoMap(startpage),
         'qmmmrij_incore' : MetaInfoMap(startpage),
-        'qmqm_erep_incore' : MetaInfoMap(startpage),     
+        'qmqm_erep_incore' : MetaInfoMap(startpage),
         'qm_ewald' : MetaInfoMap(startpage),
         'qm_pme' : MetaInfoMap(startpage),
-        'kmaxqx' : MetaInfoMap(startpage), 
-        'kmaxqy' : MetaInfoMap(startpage),         
+        'kmaxqx' : MetaInfoMap(startpage),
+        'kmaxqy' : MetaInfoMap(startpage),
         'kmaxqz' : MetaInfoMap(startpage),
         'ksqmaxsq' : MetaInfoMap(startpage),
         'adjust_q' : MetaInfoMap(startpage),
-        'density_predict' : MetaInfoMap(startpage), 
+        'density_predict' : MetaInfoMap(startpage),
         'fock_predict' : MetaInfoMap(startpage),
         'vsolv' : MetaInfoMap(startpage),
         'abfqmmm' : MetaInfoMap(startpage),
         'hot_spot' : MetaInfoMap(startpage),
-        'qmmm_switch' : MetaInfoMap(startpage), 
+        'qmmm_switch' : MetaInfoMap(startpage),
         'core_iqmatoms' : MetaInfoMap(startpage),
         'coremask' : MetaInfoMap(startpage),
         'buffermask' : MetaInfoMap(startpage),
         'centermask' : MetaInfoMap(startpage),
-        'pot_ene' : MetaInfoMap(startpage), 
+        'pot_ene' : MetaInfoMap(startpage),
         'tot' : MetaInfoMap(startpage),
         'vdw' : MetaInfoMap(startpage),
         'elec' : MetaInfoMap(startpage),
         'gb' : MetaInfoMap(startpage),
-        'bond' : MetaInfoMap(startpage), 
+        'bond' : MetaInfoMap(startpage),
         'angle' : MetaInfoMap(startpage),
         'dihedral' : MetaInfoMap(startpage),
         'vdw_14' : MetaInfoMap(startpage),
         'elec_14' : MetaInfoMap(startpage),
-        'constraint' : MetaInfoMap(startpage), 
+        'constraint' : MetaInfoMap(startpage),
         'polar' : MetaInfoMap(startpage),
         'hbond' : MetaInfoMap(startpage),
         'surf' : MetaInfoMap(startpage),
         'scf' : MetaInfoMap(startpage),
-        'disp' : MetaInfoMap(startpage), 
+        'disp' : MetaInfoMap(startpage),
         'dvdi' : MetaInfoMap(startpage),
         'angle_ub' : MetaInfoMap(startpage),
         'imp' : MetaInfoMap(startpage),
         'cmap' : MetaInfoMap(startpage),
-        'emap' : MetaInfoMap(startpage), 
+        'emap' : MetaInfoMap(startpage),
         'les' : MetaInfoMap(startpage),
         'noe' : MetaInfoMap(startpage),
         'pb' : MetaInfoMap(startpage),
         'rism' : MetaInfoMap(startpage),
-        'ct' : MetaInfoMap(startpage), 
+        'ct' : MetaInfoMap(startpage),
         'amd_boost' : MetaInfoMap(startpage)
         }
-    
+
     startpage.update({
         'metaNameTag'     : 'parm'
         })
@@ -662,33 +661,33 @@ def get_updateDictionary(self, defname):
     # ---------------------------------------------------------------
     #   Definitions of meta data values for section_sampling_method
     # ---------------------------------------------------------------
-    sampling = { 
-        'ensemble_type' : MetaInfoMap(startpage, 
+    sampling = {
+        'ensemble_type' : MetaInfoMap(startpage,
             depends=[
-                {'test' : [['imin', '== 1']], 
+                {'test' : [['imin', '== 1']],
                  'assign' : 'minimization'},
-                {'test' : [['imin', '== 0'], 
-                           ['ntt', '== 0']], 
+                {'test' : [['imin', '== 0'],
+                           ['ntt', '== 0']],
                  'assign' : 'NVE'},
-                {'test' : [['imin', '== 0'], 
-                           ['ntt', '> 0'], 
-                           ['ntt', '< 3']], 
+                {'test' : [['imin', '== 0'],
+                           ['ntt', '> 0'],
+                           ['ntt', '< 3']],
                  'assign' : 'NVT'},
-                {'test' : [['imin', '== 0'], 
-                           ['ntp', '> 0'], 
-                           ['ntt', '< 3']], 
+                {'test' : [['imin', '== 0'],
+                           ['ntp', '> 0'],
+                           ['ntt', '< 3']],
                  'assign' : 'NPT'},
-                {'test' : [['imin', '== 0'], 
-                           ['ntt', '== 3']], 
+                {'test' : [['imin', '== 0'],
+                           ['ntt', '== 3']],
                  'assign' : 'Langevin'}
                 ],
             lookupdict=self.cntrlDict
             ),
-        'sampling_method' : MetaInfoMap(startpage, 
+        'sampling_method' : MetaInfoMap(startpage,
             depends=[
-                {'test' : [['imin', '== 1']], 
+                {'test' : [['imin', '== 1']],
                  'assign' : 'geometry_optimization'},
-                {'test' : [['imin', '== 0']], 
+                {'test' : [['imin', '== 0']],
                  'assign' : 'molecular_dynamics'}
                 ],
             lookupdict=self.cntrlDict
@@ -706,20 +705,20 @@ def get_updateDictionary(self, defname):
 #       'geometry_optimization_geometry_change' : MetaInfoMap(startpage),
         'geometry_optimization_method' : MetaInfoMap(startpage,
             depends=[
-                {'test' : [['imin', '== 1'], 
-                           ['ntmin', '== 0']], 
+                {'test' : [['imin', '== 1'],
+                           ['ntmin', '== 0']],
                  'assign' : 'CG'},
-                {'test' : [['imin', '== 1'], 
-                           ['ntmin', '== 1']], 
+                {'test' : [['imin', '== 1'],
+                           ['ntmin', '== 1']],
                  'assign' : 'SD + CG'},
-                {'test' : [['imin', '== 1'], 
-                           ['ntmin', '== 2']], 
+                {'test' : [['imin', '== 1'],
+                           ['ntmin', '== 2']],
                  'assign' : 'XMIN'},
-                {'test' : [['imin', '== 1'], 
-                           ['ntmin', '== 3']], 
+                {'test' : [['imin', '== 1'],
+                           ['ntmin', '== 3']],
                  'assign' : 'LMOD'},
-                {'test' : [['imin', '== 1'], 
-                           ['ntmin', '== 4']], 
+                {'test' : [['imin', '== 1'],
+                           ['ntmin', '== 4']],
                  'assign' : 'LMOD'},
                 ],
             lookupdict=self.cntrlDict
@@ -727,14 +726,14 @@ def get_updateDictionary(self, defname):
 #       'geometry_optimization_threshold_force' : MetaInfoMap(startpage),
         'x_amber_barostat_type' : MetaInfoMap(startpage,
             depends=[
-                {'test' : [['imin', '== 0'], 
-                           ['ntp', '!= 0'], 
-                           ['barostat', '== 1']], 
+                {'test' : [['imin', '== 0'],
+                           ['ntp', '!= 0'],
+                           ['barostat', '== 1']],
                  'assign' : 'Berendsen'},
-                {'test' : [['imin', '== 0'], 
-                           ['ntp', '!= 0'], 
+                {'test' : [['imin', '== 0'],
+                           ['ntp', '!= 0'],
                            ['barostat', '== 2']],
-                 'assign' : 'Monte Carlo barostat'} 
+                 'assign' : 'Monte Carlo barostat'}
                 ],
             lookupdict=self.cntrlDict,
             #autoSections=True,
@@ -742,9 +741,9 @@ def get_updateDictionary(self, defname):
             ),
         'x_amber_barostat_target_pressure' : MetaInfoMap(startpage,
             depends=[
-                {'test' : [['imin', '== 0'], 
-                           ['ntp', '!= 0']], 
-                 'value' : 'pres0'} 
+                {'test' : [['imin', '== 0'],
+                           ['ntp', '!= 0']],
+                 'value' : 'pres0'}
                 ],
             lookupdict=self.cntrlDict,
             valtype='float',
@@ -753,9 +752,9 @@ def get_updateDictionary(self, defname):
             ),
         'x_amber_barostat_tau' : MetaInfoMap(startpage,
             depends=[
-                {'test' : [['imin', '== 0'], 
-                           ['ntp', '!= 0']], 
-                 'value' : 'taup'} 
+                {'test' : [['imin', '== 0'],
+                           ['ntp', '!= 0']],
+                 'value' : 'taup'}
                 ],
             lookupdict=self.cntrlDict,
             valtype='float',
@@ -765,7 +764,7 @@ def get_updateDictionary(self, defname):
         'x_amber_integrator_type' : MetaInfoMap(startpage,
             depends=[
                 {'test' : [['imin', '== 0']],
-                 'assign' : 'verlet'}, 
+                 'assign' : 'verlet'},
                 {'test' : [['imin', '== 1']],
                  'assign' : 'minimization'}
                 ],
@@ -793,7 +792,7 @@ def get_updateDictionary(self, defname):
         'x_amber_thermostat_type' : MetaInfoMap(startpage,
             depends=[
                 {'test' : [['imin', '== 0'], ['ntt', '== 1']],
-                 'assign' : 'Constant Temperature Scaling with weak-coupling'}, 
+                 'assign' : 'Constant Temperature Scaling with weak-coupling'},
                 {'test' : [['imin', '== 0'], ['ntt', '== 2']],
                  'assign' : 'Andersen-like'},
                 {'test' : [['imin', '== 0'], ['ntt', '== 3']],
@@ -801,7 +800,7 @@ def get_updateDictionary(self, defname):
                 {'test' : [['imin', '== 0'], ['ntt', '== 9']],
                  'assign' : 'Optimized Isokinetic Nose-Hoover'},
                 {'test' : [['imin', '== 0'], ['ntt', '== 10']],
-                 'assign' : 'RESPA Stochastic Isokinetic Nose-Hoover'} 
+                 'assign' : 'RESPA Stochastic Isokinetic Nose-Hoover'}
                 ],
             lookupdict=self.cntrlDict,
             #autoSections=True,
@@ -820,13 +819,13 @@ def get_updateDictionary(self, defname):
         'x_amber_thermostat_tau' : MetaInfoMap(startpage,
             depends=[
                 {'test' : [['imin', '== 0'], ['ntt', '== 1']],
-                 'value' : 'tautp'}, 
+                 'value' : 'tautp'},
                 {'test' : [['imin', '== 0'], ['ntt', '== 2']],
-                 'value' : 'tautp'}, 
+                 'value' : 'tautp'},
                 {'test' : [['imin', '== 0'], ['ntt', '== 9']],
-                 'value' : 'gamma_ln'}, 
+                 'value' : 'gamma_ln'},
                 {'test' : [['imin', '== 0'], ['ntt', '== 10']],
-                 'value' : 'gamma_ln'}, 
+                 'value' : 'gamma_ln'},
                 ],
             lookupdict=self.cntrlDict,
             valtype='float',
@@ -859,7 +858,7 @@ def get_updateDictionary(self, defname):
     # ------------------------------------------------------------
     #   Definitions for section_single_configuration_calculation
     # ------------------------------------------------------------
-    singleconfcalc = { 
+    singleconfcalc = {
         #'atom_forces_type' : MetaInfoMap(startpage,
         #    depends=[{'assign' : 'Amber Force Field'}],
         #    lookupdict=self.mddataDict
@@ -955,11 +954,11 @@ def get_updateDictionary(self, defname):
             activeSections=['section_restricted_uri']
             ),
         }
-   
+
     # ------------------------------------------
     #   Definitions for section_frame_sequence
     # ------------------------------------------
-    frameseq = { 
+    frameseq = {
         'frame_sequence_conserved_quantity_frames' : MetaInfoMap(startpage,
             depends=[{'store' : 'NSTEP'}],
             valtype='int',
@@ -1262,7 +1261,7 @@ def get_updateDictionary(self, defname):
         'number_of_atoms_per_molecule_interaction' : MetaInfoMap(startpage),
         'number_of_molecule_interactions' : MetaInfoMap(startpage)
         }
-   
+
     # section_atom_in_molecule of section_molecule_type
     atom_in_mol = {
         'atom_in_molecule_charge' : MetaInfoMap(startpage),
@@ -1322,22 +1321,22 @@ def set_includeList():
     return includelist
 
 def getList_MetaStrInDict(sourceDict):
-    """Returns a list that includes all meta name 
+    """Returns a list that includes all meta name
        strings for the given dictionary.
-       Meta name strings are not actual meta names but 
+       Meta name strings are not actual meta names but
        used as the keywords in the parsing.
     """
     return [sourceDict[item].matchStr for item in sourceDict]
 
 def getDict_MetaStrInDict(sourceDict):
-    """Returns a dict that includes all meta name 
+    """Returns a dict that includes all meta name
        strings and corresponding values for the given dictionary.
-       Meta name strings are not actual meta names but 
+       Meta name strings are not actual meta names but
        used as the keywords in the parsing.
     """
     newDict = {}
     for key, value in sourceDict.items():
-        newDict.update({sourceDict[key].matchStr : key}) 
+        newDict.update({sourceDict[key].matchStr : key})
     return newDict
 
 
