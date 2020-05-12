@@ -19,12 +19,13 @@ from nomadcore.caching_backend import CachingLevel
 from nomadcore.simple_parser import mainFunction
 from nomadcore.simple_parser import SimpleMatcher as SM
 from .AMBERDictionary import get_unitDict, get_nameListDict, get_fileListDict, set_excludeList, set_includeList
-from .MetaInfoStorage import COMMON_META_INFO_PATH, PUBLIC_META_INFO_PATH
-from . import MetaInfoStorage as mStore
+from MetaInfoStorage import COMMON_META_INFO_PATH, PUBLIC_META_INFO_PATH
+import MetaInfoStorage as mStore
 import logging
 import json
 import os
 import re
+import metainfo
 
 PARSERNAME = "AMBER"
 PROGRAMNAME = "amber"
@@ -38,8 +39,8 @@ PARSER_INFO_DEFAULT = {
 }
 
 META_INFO_PATH = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "../../../../nomad-meta-info/meta_info/nomad_meta_info/amber.nomadmetainfo.json"))
+    os.path.dirname(os.path.abspath(metainfo.__file__)),
+    "amber.nomadmetainfo.json"))
 
 LOGGER = logging.getLogger("nomad.AMBERParser")
 

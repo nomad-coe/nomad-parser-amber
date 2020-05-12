@@ -1063,6 +1063,7 @@ class AMBERParserInterface():
         backend = self.backend_factory("amber.nomadmetainfo.json")
         parserInfo = {'name': 'amber-parser', 'version': '1.0'}
         context = AMBERParser()
+        context.coverageIgnore = re.compile(r"^(?:" + r"|".join(context.coverageIgnoreList) + r")$")
         with patch.object(sys, 'argv', ['<exe>', '--uri', 'nmd://uri', mainfile]):
             mainFunction(
                 mainFileDescription=context.mainFileDescription(),
