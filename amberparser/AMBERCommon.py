@@ -12,20 +12,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import numpy as np
-from nomadcore.local_meta_info import loadJsonFile, InfoKindEl
-from nomadcore.unit_conversion.unit_conversion import convert_unit
-from nomadcore.caching_backend import CachingLevel
+from nomadcore.local_meta_info import InfoKindEl
 from nomadcore.simple_parser import mainFunction
 from nomadcore.simple_parser import SimpleMatcher as SM
-from .AMBERDictionary import get_unitDict, get_nameListDict, get_fileListDict, set_excludeList, set_includeList
-from MetaInfoStorage import COMMON_META_INFO_PATH, PUBLIC_META_INFO_PATH
-import MetaInfoStorage as mStore
+from .AMBERDictionary import get_unitDict, get_nameListDict, get_fileListDict
+import nomadcore.metainfo_storage.MetaInfoStorage as mStore
 import logging
-import json
-import os
 import re
-import metainfo
+
+from .metainfo import m_env as metainfo_env
 
 PARSERNAME = "AMBER"
 PROGRAMNAME = "amber"
@@ -34,21 +29,15 @@ PARSERMETANAME = PARSERNAME.lower()
 PARSERTAG = 'x_' + PARSERMETANAME
 
 PARSER_INFO_DEFAULT = {
-        'name':'amber-parser',
-        'version': '0.0.1'
+    'name': 'amber-parser',
+    'version': '0.0.1'
 }
-
-META_INFO_PATH = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(metainfo.__file__)),
-    "amber.nomadmetainfo.json"))
 
 LOGGER = logging.getLogger("nomad.AMBERParser")
 
+
 def get_metaInfo(self):
-    metaInfoEnv, warnings = loadJsonFile(filePath=META_INFO_PATH,
-                                         dependencyLoader=None,
-                                         extraArgsHandling=InfoKindEl.ADD_EXTRA_ARGS,
-                                         uri=None)
+    metaInfoEnv = metainfo_env.legacy_info_env
     metaInfoEnv = set_section_metaInfoEnv(metaInfoEnv, 'section', ['input_output_files'], 'type_section', False, ["section_run"])
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.fileDict)
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.cntrlDict)
@@ -58,6 +47,7 @@ def get_metaInfo(self):
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.mddataDict)
     metaInfoEnv = setDict_metaInfoEnv(metaInfoEnv, self.extraDict)
     return metaInfoEnv
+
 
 def set_section_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, repeatingSection, supraNames):
     """Modifies meta info data.
@@ -80,6 +70,7 @@ def set_section_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, repeating
 
     return infoEnv
 
+
 def setDict_metaInfoEnv(infoEnv, nameDict):
     """Modifies meta info data.
 
@@ -100,6 +91,7 @@ def setDict_metaInfoEnv(infoEnv, nameDict):
                 superNames=nameDict[keyName].activeSections))
 
     return infoEnv
+
 
 def set_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, supraNames):
     """Modifies meta info data.
@@ -122,24 +114,22 @@ def set_metaInfoEnv(infoEnv, metaNameTag, newList, listTypStr, supraNames):
 
     return infoEnv
 
+
 class AMBERParserBase(object):
     """Base class for Amber parsers"""
-    def __init__(self,cachingLevelForMetaName=None, coverageIgnoreList=None,
-                 re_program_name=None):
+    def __init__(
+            self, cachingLevelForMetaName=None, coverageIgnoreList=None, re_program_name=None):
         self.metaStorage = mStore.Container('section_run')
         self.metaStorageRestrict = mStore.Container('section_restricted_uri')
         exclude_dict = {
-            'section_run' : [
-            'section_processor_info',
-            'section_processor_log',
-            'section_springer_material',
-            'section_repository_info'
-            ]}
-        jsonmetadata = mStore.JsonMetaInfo(
-                COMMON_META_INFO_PATH,
-                PUBLIC_META_INFO_PATH,
-                META_INFO_PATH
-                )
+            'section_run': [
+                'section_processor_info',
+                'section_processor_log',
+                'section_springer_material',
+                'section_repository_info'
+            ]
+        }
+        jsonmetadata = mStore.JsonMetaInfo(metainfo_env.legacy_info_env)
         self.metaStorage.build(jsonmetadata, 'section_run', exclude_dict)
         self.metaStorageRestrict.build(jsonmetadata, 'section_restricted_uri', exclude_dict)
         self.re_program_name = re_program_name
@@ -158,18 +148,19 @@ class AMBERParserBase(object):
             # ignore empty lines
             r"\s*",
             # table separators
-            #r"^\s*[=%-]+\s*$",
-            #r"^\s*%\s*%\s*$",
+            # r"^\s*[=%-]+\s*$",
+            # r"^\s*%\s*%\s*$",
         ]
         self.coverageIgnore = None
 
     def parse(self):
         self.coverageIgnore = re.compile(r"^(?:" + r"|".join(self.coverageIgnoreList) + r")$")
-        mainFunction(mainFileDescription=self.mainFileDescription(),
-                     metaInfoEnv=self.metaInfoEnv,
-                     parserInfo=self.parserInfo,
-                     cachingLevelForMetaName=self.cachingLevelForMetaName,
-                     superContext=self)
+        mainFunction(
+            mainFileDescription=self.mainFileDescription(),
+            metaInfoEnv=self.metaInfoEnv,
+            parserInfo=self.parserInfo,
+            #  cachingLevelForMetaName=self.cachingLevelForMetaName,
+            superContext=self)
 
     def adHoc_amber_program_name(self, parser):
         if self.re_program_name is not None:
@@ -182,14 +173,12 @@ class AMBERParserBase(object):
 
     def mainFileDescription(self):
         # assemble matchers and submatchers
-        return SM(name='Root',
+        return SM(
+            name='Root',
             startReStr="",
             forwardMatch=True,
             weak=True,
-            subMatchers=self.build_subMatchers()
-            ) # END Root
+            subMatchers=self.build_subMatchers())
 
     def build_subMatchers(self):
         return []
-
-
