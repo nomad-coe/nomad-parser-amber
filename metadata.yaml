@@ -1,0 +1,8 @@
+codeLabel: Amber
+codeLabelStyle: only first character in capitals
+codeUrl: http://ambermd.org/
+parserDirName: dependencies/parsers/amber/
+parserGitUrl: https://gitlab.mpcdf.mpg.de/nomad-lab/parser-amber
+parserSpecific: |
+  The Amber parser supports the SANDER and PMEMD Molecular Dynamics codes.
+tableOfFiles: ''
