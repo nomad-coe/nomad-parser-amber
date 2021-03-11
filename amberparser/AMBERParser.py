@@ -29,7 +29,6 @@ from .AMBERDictionary import set_excludeList, set_includeList, get_updateDiction
 from nomadcore.smart_parser.SmartParserDictionary import isMetaStrInDict
 from contextlib import contextmanager
 from . import AMBERCommon as AmberC
-from . import trajectory_reader as TrajRead
 import logging
 import os
 import re
@@ -172,6 +171,7 @@ class AMBERParser(AmberC.AMBERParserBase):
         return line
 
     def topologyFileHandler(self, fileItem):
+        from . import trajectory_reader as TrajRead
         if 'topology' in self.fileDict[fileItem].infoPurpose:
             topofile = self.fileDict[fileItem].fileName
             self.topologyFile = topofile
@@ -188,6 +188,7 @@ class AMBERParser(AmberC.AMBERParserBase):
                         return fileFormat
 
     def trajectoryFileHandler(self, fileItem, topoformat):
+        from . import trajectory_reader as TrajRead
         if 'trajectory' in self.fileDict[fileItem].infoPurpose:
             trajfile = self.fileDict[fileItem].fileName
             self.trajectoryFile = trajfile
