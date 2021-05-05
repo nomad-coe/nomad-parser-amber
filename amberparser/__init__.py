@@ -1,8 +1,7 @@
 #
 # Copyright The NOMAD Authors.
 #
-# This file is part of NOMAD.
-# See https://nomad-lab.eu for further info.
+# This file is part of NOMAD. See https://nomad-lab.eu for further info.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,4 +15,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from .AMBERParser import AMBERParserInterface as AMBERParser
+
+from .amber_parser import AmberParser
