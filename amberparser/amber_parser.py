@@ -32,6 +32,8 @@ class AmberParser(BasicParser):
             program_version=r'Amber\s*(\d+)\s*(\w+)\s*(\d+)',
             # will only read initial coordinates
             auxilliary_files=r'(\S+\.inpcrd|\S+\.prmtop)',
-            number_of_atoms_atom_positions=rf'(\d+\s+{re_f} +{re_f} +{re_f} +{re_f} +{re_f} +{re_f}[\s\S]+)',
+            atom_positions=(
+                rf'\d+\s+({re_f} +{re_f} +{re_f} +{re_f} +{re_f} +{re_f}[\s\S]+)',
+                lambda x: x.strip().split()),
             atom_atom_number=r'\%FLAG ATOMIC_NUMBER\s*\%FORMAT\(.+\)\s*([\d\s]+)',
             energy_total=rf'NSTEP\s*ENERGY.+\s*\d+\s*({re_f})')
