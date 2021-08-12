@@ -36,9 +36,9 @@ def test_basic(parser):
     archive = EntryArchive()
     parser.parse('tests/data/polyAT_vac_init_min.out', archive, None)
 
-    assert archive.section_run[0].program_version == '14 SANDER 2014'
-    sec_system = archive.section_run[0].section_system[0]
-    assert np.shape(sec_system.atom_positions) == (638, 3)
-    assert sec_system.atom_labels[7] == 'O'
-    sec_scc = archive.section_run[0].section_single_configuration_calculation
-    assert sec_scc[1].energy_total.magnitude == approx(-3.49178376e-16)
+    assert archive.run[0].program.version == '14 SANDER 2014'
+    sec_system = archive.run[0].system[0]
+    assert np.shape(sec_system.atoms.positions) == (638, 3)
+    assert sec_system.atoms.labels[7] == 'O'
+    sec_scc = archive.run[0].calculation
+    assert sec_scc[1].energy.total.value.magnitude == approx(-3.49178376e-16)
