@@ -26,6 +26,9 @@ from nomad.datamodel.metainfo import run
 from nomad.datamodel.metainfo import workflow
 
 
+m_package = Package()
+
+
 class x_amber_mdin_method(MCategory):
     '''
     Parameters of mdin belonging to section method.
